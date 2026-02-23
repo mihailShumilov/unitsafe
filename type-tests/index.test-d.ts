@@ -8,6 +8,7 @@ import {
   to,
   lt, lte, gt, gte, eq,
   valueOf,
+  parse,
   type Quantity,
 } from '../src/index.js';
 
@@ -86,6 +87,24 @@ expectError(gt(m(1), s(2)));
 expectError(lte(m(1), s(2)));
 expectError(gte(m(1), s(2)));
 expectError(eq(m(1), s(2)));
+
+// ── String input ──────────────────────────────────────────────────
+
+// OK: factories accept string values
+expectType<Quantity<[1,0,0,0,0,0,0], 'm'>>(m('5'));
+expectType<Quantity<[1,0,0,0,0,0,0], 'km'>>(km('2.5'));
+expectType<Quantity<[0,0,1,0,0,0,0], 's'>>(s('10'));
+expectType<Quantity<[0,1,0,0,0,0,0], 'kg'>>(kg('75'));
+expectType<Quantity<[0,0,0,0,0,0,0], 'scalar'>>(scalar('1'));
+
+// OK: string-created quantities work with operations
+expectType<Quantity<[1,0,0,0,0,0,0], 'm'>>(add(m('1'), m('2')));
+expectType<number>(valueOf(m('5')));
+
+// OK: parse returns a Quantity
+void parse;
+const parsed = parse('5 m');
+expectType<number>(valueOf(parsed));
 
 // ── valueOf ─────────────────────────────────────────────────────────
 

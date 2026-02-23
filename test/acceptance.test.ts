@@ -9,6 +9,7 @@ import {
   eq, lt, lte, gt, gte,
   valueOf,
   format,
+  parse,
   createChecked,
 } from '../src/index.js';
 
@@ -199,6 +200,167 @@ describe('unitsafe acceptance tests', () => {
       expect(() => {
         checked.to(checked.s as any, checked.km(1) as any);
       }).toThrow();
+    });
+  });
+
+  describe('raw string input', () => {
+    describe('unit factories accept string values', () => {
+      it('creates quantity from integer string', () => {
+        expect(valueOf(m('5'))).toBe(5);
+      });
+
+      it('creates quantity from float string', () => {
+        expect(valueOf(m('3.14'))).toBe(3.14);
+      });
+
+      it('creates quantity from negative string', () => {
+        expect(valueOf(m('-10'))).toBe(-10);
+      });
+
+      it('creates quantity from string with leading/trailing whitespace', () => {
+        expect(valueOf(m('  42  '))).toBe(42);
+      });
+
+      it('creates quantity from scientific notation string', () => {
+        expect(valueOf(m('1e3'))).toBe(1000);
+      });
+
+      it('works with all unit factories', () => {
+        expect(valueOf(km('2.5'))).toBe(2.5);
+        expect(valueOf(cm('100'))).toBe(100);
+        expect(valueOf(mm('500'))).toBe(500);
+        expect(valueOf(s('30'))).toBe(30);
+        expect(valueOf(ms('250'))).toBe(250);
+        expect(valueOf(min('5'))).toBe(5);
+        expect(valueOf(h('2'))).toBe(2);
+        expect(valueOf(kg('75'))).toBe(75);
+        expect(valueOf(g('250'))).toBe(250);
+        expect(valueOf(scalar('1'))).toBe(1);
+      });
+
+      it('string-created quantities work with arithmetic', () => {
+        expect(valueOf(add(m('1'), m('2')))).toBe(3);
+        expect(valueOf(sub(m('5'), m('2')))).toBe(3);
+        expect(valueOf(mul(m('3'), m('4')))).toBe(12);
+        expect(valueOf(div(m('10'), s('2')))).toBe(5);
+      });
+
+      it('string-created quantities work with conversions', () => {
+        const result = to(m, km('1.5'));
+        expect(valueOf(result)).toBe(1500);
+      });
+
+      it('string-created quantities work with comparisons', () => {
+        expect(eq(m('5'), m('5'))).toBe(true);
+        expect(lt(m('1'), m('2'))).toBe(true);
+        expect(gt(m('2'), m('1'))).toBe(true);
+      });
+
+      it('string-created quantities work with format', () => {
+        expect(format(m('5'))).toBe('5 m');
+        expect(format(km('1.5'))).toBe('1.5 km');
+      });
+    });
+
+    describe('invalid string input throws', () => {
+      it('throws on non-numeric string', () => {
+        expect(() => m('abc')).toThrow();
+      });
+
+      it('throws on empty string', () => {
+        expect(() => m('')).toThrow();
+      });
+
+      it('throws on whitespace-only string', () => {
+        expect(() => m('   ')).toThrow();
+      });
+
+      it('throws on string with unit suffix', () => {
+        expect(() => m('5 m')).toThrow();
+      });
+    });
+
+    describe('parse function', () => {
+      it('parses "5 m" into a meters quantity', () => {
+        const result = parse('5 m');
+        expect(valueOf(result)).toBe(5);
+        expect(result._l).toBe('m');
+      });
+
+      it('parses "1.5 km" into a kilometers quantity', () => {
+        const result = parse('1.5 km');
+        expect(valueOf(result)).toBe(1.5);
+        expect(result._l).toBe('km');
+      });
+
+      it('parses quantities for all built-in units', () => {
+        expect(valueOf(parse('100 cm'))).toBe(100);
+        expect(valueOf(parse('500 mm'))).toBe(500);
+        expect(valueOf(parse('30 s'))).toBe(30);
+        expect(valueOf(parse('250 ms'))).toBe(250);
+        expect(valueOf(parse('5 min'))).toBe(5);
+        expect(valueOf(parse('2 h'))).toBe(2);
+        expect(valueOf(parse('75 kg'))).toBe(75);
+        expect(valueOf(parse('250 g'))).toBe(250);
+        expect(valueOf(parse('1 scalar'))).toBe(1);
+      });
+
+      it('handles negative values', () => {
+        const result = parse('-10 m');
+        expect(valueOf(result)).toBe(-10);
+      });
+
+      it('handles scientific notation', () => {
+        const result = parse('1e3 m');
+        expect(valueOf(result)).toBe(1000);
+      });
+
+      it('handles extra whitespace', () => {
+        const result = parse('  5   m  ');
+        expect(valueOf(result)).toBe(5);
+        expect(result._l).toBe('m');
+      });
+
+      it('throws on unknown unit', () => {
+        expect(() => parse('5 miles')).toThrow();
+      });
+
+      it('throws on missing value', () => {
+        expect(() => parse('m')).toThrow();
+      });
+
+      it('throws on missing unit', () => {
+        expect(() => parse('5')).toThrow();
+      });
+
+      it('throws on empty string', () => {
+        expect(() => parse('')).toThrow();
+      });
+
+      it('throws on non-numeric value', () => {
+        expect(() => parse('abc m')).toThrow();
+      });
+    });
+
+    describe('checked mode with string input', () => {
+      it('checked factories accept string values', () => {
+        const checked = createChecked();
+        expect(checked.valueOf(checked.m('5'))).toBe(5);
+        expect(checked.valueOf(checked.km('2.5'))).toBe(2.5);
+      });
+
+      it('checked add works with string-created quantities', () => {
+        const checked = createChecked();
+        const result = checked.add(checked.m('1'), checked.m('2'));
+        expect(checked.valueOf(result)).toBe(3);
+      });
+
+      it('checked parse works', () => {
+        const checked = createChecked();
+        const result = checked.parse('5 m');
+        expect(checked.valueOf(result)).toBe(5);
+        expect(result._l).toBe('m');
+      });
     });
   });
 

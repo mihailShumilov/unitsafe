@@ -396,12 +396,17 @@ export interface Quantity<D extends Dim = Dim, L extends string = string> {
  */
 export interface UnitFactory<D extends Dim, L extends string> {
   /**
-   * Creates a new quantity with the given numeric value in this unit.
+   * Creates a new quantity with the given value in this unit.
    *
-   * @param value - The numeric value of the quantity
+   * Accepts a `number` or a numeric `string`. String values are parsed
+   * using `Number()` after trimming whitespace. Non-numeric strings
+   * (e.g., `"abc"`, `""`, `"5 m"`) throw a `TypeError`.
+   *
+   * @param value - The numeric value, or a string representing a number
    * @returns A branded `Quantity` carrying dimension and unit information
+   * @throws {TypeError} If a string value cannot be parsed as a finite number
    */
-  (value: number): Quantity<D, L>;
+  (value: number | string): Quantity<D, L>;
 
   /** SI scale factor. Multiplying a value in this unit by `_scale` gives the SI base unit value. */
   readonly _scale: number;
@@ -411,6 +416,32 @@ export interface UnitFactory<D extends Dim, L extends string> {
 
   /** The dimension vector for this unit, accessible at runtime for checked-mode validation. */
   readonly _dim: D;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// String Input Parsing
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Coerces a `number | string` value to a validated `number`.
+ *
+ * If the input is already a number, it is returned as-is.
+ * If the input is a string, it is trimmed and parsed via `Number()`.
+ * Throws a `TypeError` if the result is `NaN` or the trimmed string is empty.
+ *
+ * @param v - The value to coerce
+ * @param label - Unit label for error messages
+ * @returns The numeric value
+ * @throws {TypeError} If the string cannot be parsed as a finite number
+ * @internal
+ */
+function toNum(v: number | string, label: string): number {
+  if (typeof v === 'number') return v;
+  const trimmed = v.trim();
+  if (trimmed === '') throw new TypeError(`Invalid value for ${label}: empty string`);
+  const n = Number(trimmed);
+  if (Number.isNaN(n)) throw new TypeError(`Invalid value for ${label}: "${v}" is not a number`);
+  return n;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -435,7 +466,7 @@ export interface UnitFactory<D extends Dim, L extends string> {
  * ```
  */
 export const m: UnitFactory<DimLength, 'm'> = Object.assign(
-  (v: number): Quantity<DimLength, 'm'> => ({ _v: v, _s: 1, _l: 'm' }),
+  (v: number | string): Quantity<DimLength, 'm'> => ({ _v: toNum(v, 'm'), _s: 1, _l: 'm' }),
   { _scale: 1, _label: 'm', _dim: [1,0,0,0,0,0,0] as DimLength },
 );
 
@@ -452,7 +483,7 @@ export const m: UnitFactory<DimLength, 'm'> = Object.assign(
  * ```
  */
 export const km: UnitFactory<DimLength, 'km'> = Object.assign(
-  (v: number): Quantity<DimLength, 'km'> => ({ _v: v, _s: 1000, _l: 'km' }),
+  (v: number | string): Quantity<DimLength, 'km'> => ({ _v: toNum(v, 'km'), _s: 1000, _l: 'km' }),
   { _scale: 1000, _label: 'km', _dim: [1,0,0,0,0,0,0] as DimLength },
 );
 
@@ -469,7 +500,7 @@ export const km: UnitFactory<DimLength, 'km'> = Object.assign(
  * ```
  */
 export const cm: UnitFactory<DimLength, 'cm'> = Object.assign(
-  (v: number): Quantity<DimLength, 'cm'> => ({ _v: v, _s: 0.01, _l: 'cm' }),
+  (v: number | string): Quantity<DimLength, 'cm'> => ({ _v: toNum(v, 'cm'), _s: 0.01, _l: 'cm' }),
   { _scale: 0.01, _label: 'cm', _dim: [1,0,0,0,0,0,0] as DimLength },
 );
 
@@ -486,7 +517,7 @@ export const cm: UnitFactory<DimLength, 'cm'> = Object.assign(
  * ```
  */
 export const mm: UnitFactory<DimLength, 'mm'> = Object.assign(
-  (v: number): Quantity<DimLength, 'mm'> => ({ _v: v, _s: 0.001, _l: 'mm' }),
+  (v: number | string): Quantity<DimLength, 'mm'> => ({ _v: toNum(v, 'mm'), _s: 0.001, _l: 'mm' }),
   { _scale: 0.001, _label: 'mm', _dim: [1,0,0,0,0,0,0] as DimLength },
 );
 
@@ -503,7 +534,7 @@ export const mm: UnitFactory<DimLength, 'mm'> = Object.assign(
  * ```
  */
 export const s: UnitFactory<DimTime, 's'> = Object.assign(
-  (v: number): Quantity<DimTime, 's'> => ({ _v: v, _s: 1, _l: 's' }),
+  (v: number | string): Quantity<DimTime, 's'> => ({ _v: toNum(v, 's'), _s: 1, _l: 's' }),
   { _scale: 1, _label: 's', _dim: [0,0,1,0,0,0,0] as DimTime },
 );
 
@@ -520,7 +551,7 @@ export const s: UnitFactory<DimTime, 's'> = Object.assign(
  * ```
  */
 export const ms: UnitFactory<DimTime, 'ms'> = Object.assign(
-  (v: number): Quantity<DimTime, 'ms'> => ({ _v: v, _s: 0.001, _l: 'ms' }),
+  (v: number | string): Quantity<DimTime, 'ms'> => ({ _v: toNum(v, 'ms'), _s: 0.001, _l: 'ms' }),
   { _scale: 0.001, _label: 'ms', _dim: [0,0,1,0,0,0,0] as DimTime },
 );
 
@@ -537,7 +568,7 @@ export const ms: UnitFactory<DimTime, 'ms'> = Object.assign(
  * ```
  */
 export const min: UnitFactory<DimTime, 'min'> = Object.assign(
-  (v: number): Quantity<DimTime, 'min'> => ({ _v: v, _s: 60, _l: 'min' }),
+  (v: number | string): Quantity<DimTime, 'min'> => ({ _v: toNum(v, 'min'), _s: 60, _l: 'min' }),
   { _scale: 60, _label: 'min', _dim: [0,0,1,0,0,0,0] as DimTime },
 );
 
@@ -554,7 +585,7 @@ export const min: UnitFactory<DimTime, 'min'> = Object.assign(
  * ```
  */
 export const h: UnitFactory<DimTime, 'h'> = Object.assign(
-  (v: number): Quantity<DimTime, 'h'> => ({ _v: v, _s: 3600, _l: 'h' }),
+  (v: number | string): Quantity<DimTime, 'h'> => ({ _v: toNum(v, 'h'), _s: 3600, _l: 'h' }),
   { _scale: 3600, _label: 'h', _dim: [0,0,1,0,0,0,0] as DimTime },
 );
 
@@ -571,7 +602,7 @@ export const h: UnitFactory<DimTime, 'h'> = Object.assign(
  * ```
  */
 export const kg: UnitFactory<DimMass, 'kg'> = Object.assign(
-  (v: number): Quantity<DimMass, 'kg'> => ({ _v: v, _s: 1, _l: 'kg' }),
+  (v: number | string): Quantity<DimMass, 'kg'> => ({ _v: toNum(v, 'kg'), _s: 1, _l: 'kg' }),
   { _scale: 1, _label: 'kg', _dim: [0,1,0,0,0,0,0] as DimMass },
 );
 
@@ -588,7 +619,7 @@ export const kg: UnitFactory<DimMass, 'kg'> = Object.assign(
  * ```
  */
 export const g: UnitFactory<DimMass, 'g'> = Object.assign(
-  (v: number): Quantity<DimMass, 'g'> => ({ _v: v, _s: 0.001, _l: 'g' }),
+  (v: number | string): Quantity<DimMass, 'g'> => ({ _v: toNum(v, 'g'), _s: 0.001, _l: 'g' }),
   { _scale: 0.001, _label: 'g', _dim: [0,1,0,0,0,0,0] as DimMass },
 );
 
@@ -612,7 +643,7 @@ export const g: UnitFactory<DimMass, 'g'> = Object.assign(
  * ```
  */
 export const scalar: UnitFactory<DimScalar, 'scalar'> = Object.assign(
-  (v: number): Quantity<DimScalar, 'scalar'> => ({ _v: v, _s: 1, _l: 'scalar' }),
+  (v: number | string): Quantity<DimScalar, 'scalar'> => ({ _v: toNum(v, 'scalar'), _s: 1, _l: 'scalar' }),
   { _scale: 1, _label: 'scalar', _dim: [0,0,0,0,0,0,0] as DimScalar },
 );
 
@@ -998,6 +1029,71 @@ export function format<D extends Dim, L extends string>(
   return v + ' ' + q._l;
 }
 
+/**
+ * Parses a string like `"5 m"` or `"1.5 km"` into a typed {@link Quantity}.
+ *
+ * The input format is `"<value> <unit>"` where:
+ * - `<value>` is any valid JavaScript numeric literal (integers, floats,
+ *   negative numbers, scientific notation)
+ * - `<unit>` is one of the built-in unit labels: `m`, `km`, `cm`, `mm`,
+ *   `s`, `ms`, `min`, `h`, `kg`, `g`, `scalar`
+ *
+ * Leading/trailing whitespace is trimmed. Value and unit can be separated
+ * by one or more spaces.
+ *
+ * Because the unit is determined at runtime, the returned type is
+ * `Quantity` (with unspecified dimension/label). Use this for dynamic
+ * input scenarios; for static usage, prefer the typed factories directly.
+ *
+ * @param input - A string in the format `"<value> <unit>"`
+ * @returns A `Quantity` for the parsed unit and value
+ * @throws {TypeError} If the input is empty, missing a value or unit,
+ *   contains an unknown unit, or the value is non-numeric
+ *
+ * @example
+ * ```typescript
+ * parse('5 m')       // equivalent to m(5)
+ * parse('1.5 km')    // equivalent to km(1.5)
+ * parse('-10 s')     // equivalent to s(-10)
+ * parse('1e3 g')     // equivalent to g(1000)
+ *
+ * parse('5 miles')   // throws TypeError: unknown unit "miles"
+ * parse('abc m')     // throws TypeError: "abc" is not a number
+ * parse('5')         // throws TypeError: missing unit
+ * parse('')          // throws TypeError: empty string
+ * ```
+ */
+export function parse(input: string): Quantity {
+  const trimmed = input.trim();
+  if (trimmed === '') throw new TypeError('Invalid parse input: empty string');
+
+  const factories: Record<string, UnitFactory<Dim, string>> = {
+    m, km, cm, mm, s, ms, min, h, kg, g, scalar,
+  };
+
+  // Split on whitespace: first token is value, last token is unit.
+  // We use lastIndexOf to handle "  5   m  " correctly after trim.
+  const parts = trimmed.split(/\s+/);
+  if (parts.length < 2) {
+    throw new TypeError(`Invalid parse input: "${input}" — expected "<value> <unit>"`);
+  }
+
+  const valueStr = parts[0];
+  const unitLabel = parts[parts.length - 1];
+  const factory = factories[unitLabel];
+
+  if (!factory) {
+    throw new TypeError(`Unknown unit "${unitLabel}" in parse input "${input}"`);
+  }
+
+  const n = Number(valueStr);
+  if (Number.isNaN(n)) {
+    throw new TypeError(`Invalid value "${valueStr}" in parse input "${input}" — not a number`);
+  }
+
+  return factory(n);
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // Checked Mode (Development Runtime Validation)
 // ═══════════════════════════════════════════════════════════════════════
@@ -1157,5 +1253,6 @@ export function createChecked() {
     // Helpers (pass-through)
     valueOf,
     format,
+    parse,
   };
 }
