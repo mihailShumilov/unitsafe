@@ -1067,9 +1067,10 @@ export function parse(input: string): Quantity {
   const trimmed = input.trim();
   if (trimmed === '') throw new TypeError('Invalid parse input: empty string');
 
-  const factories: Record<string, UnitFactory<Dim, string>> = {
-    m, km, cm, mm, s, ms, min, h, kg, g, scalar,
-  };
+  const factories: Record<string, UnitFactory<Dim, string>> = Object.create(null);
+  factories['m'] = m; factories['km'] = km; factories['cm'] = cm; factories['mm'] = mm;
+  factories['s'] = s; factories['ms'] = ms; factories['min'] = min; factories['h'] = h;
+  factories['kg'] = kg; factories['g'] = g; factories['scalar'] = scalar;
 
   // Split on whitespace: first token is value, last token is unit.
   // We use lastIndexOf to handle "  5   m  " correctly after trim.
