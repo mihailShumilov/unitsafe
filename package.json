@@ -45,6 +45,10 @@
     "email": "michaelfromua@gmail.com",
     "url": "https://www.linkedin.com/in/michael-shumilov-46453737/"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mihailShumilov/unitsafe"
+  },
   "license": "MIT",
   "devDependencies": {
     "tsd": "^0.33.0",
