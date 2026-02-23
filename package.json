@@ -1,6 +1,6 @@
 {
   "name": "unitsafe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compile-time dimension safety for TypeScript with zero runtime cost",
   "type": "module",
   "main": "./dist/index.cjs",
