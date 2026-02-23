@@ -44,7 +44,7 @@ pnpm test && pnpm typecheck && pnpm build && pnpm type-tests && pnpm bench
 
 | Script | Tool | What It Checks |
 |--------|------|----------------|
-| `pnpm test` | Vitest | Runtime correctness (32 tests) |
+| `pnpm test` | Vitest | Runtime correctness (60 tests) |
 | `pnpm typecheck` | tsc --noEmit | Source type safety |
 | `pnpm build` | tsup | ESM + CJS + .d.ts generation |
 | `pnpm type-tests` | tsd | Compile-time safety guarantees |
@@ -64,11 +64,13 @@ src/index.ts
 ├── Dimension vectors (Dim, DimMul, DimDiv)
 ├── Quantity interface
 ├── UnitFactory interface
+├── String coercion helper (toNum)
 ├── Built-in units (m, km, cm, mm, s, ms, min, h, kg, g, scalar)
 ├── Core operations (add, sub, mul, div)
 ├── Conversion (to)
 ├── Comparisons (eq, lt, lte, gt, gte)
 ├── Helpers (valueOf, format)
+├── String parsing (parse)
 └── Checked mode (createChecked)
 ```
 
@@ -108,11 +110,11 @@ To add a new built-in unit (e.g., miles):
 
 1. **Define the dimension type** if new (e.g., `DimLength` already exists for length).
 
-2. **Add the unit factory** in `src/index.ts`:
+2. **Add the unit factory** in `src/index.ts`. The factory function must accept `number | string` — use the internal `toNum` helper to handle string coercion:
 
 ```typescript
 export const mi: UnitFactory<DimLength, 'mi'> = Object.assign(
-  (v: number): Quantity<DimLength, 'mi'> => ({ _v: v, _s: 1609.344, _l: 'mi' }),
+  (v: number | string): Quantity<DimLength, 'mi'> => ({ _v: toNum(v, 'mi'), _s: 1609.344, _l: 'mi' }),
   { _scale: 1609.344, _label: 'mi', _dim: [1,0,0,0,0,0,0] as DimLength },
 );
 ```
@@ -121,27 +123,46 @@ export const mi: UnitFactory<DimLength, 'mi'> = Object.assign(
 
 4. **Add it to the return object** of `createChecked()`.
 
-5. **Add runtime tests** in `test/acceptance.test.ts`:
+5. **Register in `parse()`** — add `mi` to the `factories` record inside the `parse` function body so that `parse('1 mi')` works:
+
+```typescript
+const factories: Record<string, UnitFactory<Dim, string>> = {
+  m, km, cm, mm, s, ms, min, h, kg, g, scalar, mi,  // add here
+};
+```
+
+6. **Add runtime tests** in `test/acceptance.test.ts`. Include both numeric and string input:
 
 ```typescript
 it('converts mi to m', () => {
   const result = to(m, mi(1));
   expect(valueOf(result)).toBeCloseTo(1609.344);
 });
+
+it('mi factory accepts string input', () => {
+  expect(valueOf(mi('1.5'))).toBe(1.5);
+});
+
+it('parse handles mi unit', () => {
+  const result = parse('1 mi');
+  expect(valueOf(result)).toBe(1);
+  expect(result._l).toBe('mi');
+});
 ```
 
-6. **Add type tests** in `type-tests/index.test-d.ts`:
+7. **Add type tests** in `type-tests/index.test-d.ts`. Include string input:
 
 ```typescript
 expectType<Quantity<[1,0,0,0,0,0,0], 'mi'>>(mi(1));
+expectType<Quantity<[1,0,0,0,0,0,0], 'mi'>>(mi('1'));
 expectError(add(mi(1), s(1))); // different dimensions
 ```
 
-7. **Export** from `src/index.ts` (already exported if using `export const`).
+8. **Export** from `src/index.ts` (already exported if using `export const`).
 
-8. **Document** in the README's unit table.
+9. **Document** in the README's unit factory table.
 
-9. **Run the full pipeline:**
+10. **Run the full pipeline:**
 
 ```bash
 pnpm test && pnpm typecheck && pnpm build && pnpm type-tests

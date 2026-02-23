@@ -27,6 +27,7 @@ add(1, m(2));      // Compile error: raw number rejected
   - [Unit Conversion](#unit-conversion)
   - [Comparisons](#comparisons)
   - [Helpers](#helpers)
+  - [parse()](#parseinput--parse-a-value-unit-string)
   - [Checked Mode](#checked-mode-development-runtime-validation)
 - [Worked Examples](#worked-examples)
 - [How the Type System Works](#how-the-type-system-works)
@@ -159,9 +160,24 @@ Each factory creates a `Quantity` value branded with the corresponding dimension
 
 **Signature:**
 ```typescript
-function m(value: number): Quantity<DimLength, 'm'>
-function km(value: number): Quantity<DimLength, 'km'>
+function m(value: number | string): Quantity<DimLength, 'm'>
+function km(value: number | string): Quantity<DimLength, 'km'>
 // ... etc.
+```
+
+All 11 factories accept either a `number` or a numeric `string`. String values are trimmed of whitespace before parsing. Scientific notation is supported. Non-numeric strings throw a `TypeError`.
+
+```typescript
+m(5)         // number input
+m('5')       // string input — same result
+m('3.14')    // float string
+m('-10')     // negative string
+m('1e3')     // scientific notation → 1000
+m('  42  ')  // whitespace trimmed → 42
+
+m('abc')     // TypeError: "abc" is not a number
+m('')        // TypeError: empty string
+m('5 m')     // TypeError: "5 m" is not a number (use parse() instead)
 ```
 
 Each factory is also a `UnitFactory` object with metadata properties:
@@ -295,6 +311,44 @@ format(mul(m(3), m(4)))            // "12 m*m"
 |--------|------|---------|-------------|
 | `precision` | `number` | — | Number of decimal places (uses `toFixed`) |
 
+### `parse(input)` — Parse a `"<value> <unit>"` String
+
+Parses a string in the format `"<value> <unit>"` and returns a typed `Quantity`. Useful when consuming quantities from external input — API responses, user-entered strings, configuration files, etc.
+
+**Supported units:** `m`, `km`, `cm`, `mm`, `s`, `ms`, `min`, `h`, `kg`, `g`, `scalar`
+
+```typescript
+parse('5 m')        // equivalent to m(5)
+parse('1.5 km')     // equivalent to km(1.5)
+parse('-10 s')      // equivalent to s(-10)
+parse('1e3 g')      // equivalent to g(1000)
+parse('  5   m  ')  // whitespace trimmed and collapsed
+
+parse('5 miles')    // TypeError: unknown unit "miles"
+parse('abc m')      // TypeError: "abc" is not a number
+parse('5')          // TypeError: missing unit
+parse('')           // TypeError: empty string
+```
+
+Because the unit is resolved at runtime, the return type is the base `Quantity` (with unresolved dimension and label type parameters). For static usage where the unit is known at compile time, prefer the typed factories directly — they produce narrower types.
+
+```typescript
+import { parse, valueOf } from 'unitsafe';
+
+// Dynamic input from an API:
+const userInput = '42.5 km';
+const distance = parse(userInput);
+console.log(valueOf(distance));   // 42.5
+console.log(distance._l);         // "km"
+```
+
+`parse` is also available through `createChecked()`, giving it access to the same checked-mode API:
+
+```typescript
+const checked = createChecked();
+const q = checked.parse('5 m');   // Quantity
+```
+
 ### Checked Mode (Development Runtime Validation)
 
 The default API relies entirely on compile-time checks. For development and testing, `createChecked()` returns a mirror of the full API that adds **runtime validation** — it throws descriptive errors when dimension or unit mismatches are detected.
@@ -303,11 +357,12 @@ The default API relies entirely on compile-time checks. For development and test
 import { createChecked } from 'unitsafe';
 
 const {
-  m, km, s,           // same factories
+  m, km, s,            // same factories (accept number | string)
   add, sub, mul, div,  // checked operations
   to,                  // checked conversion
   eq, lt, lte, gt, gte,
   valueOf, format,
+  parse,               // also available in checked mode
 } = createChecked();
 
 // Works normally for valid operations
@@ -593,7 +648,7 @@ unitsafe has three layers of testing:
 
 ### Runtime Tests
 
-**32 tests** across 9 test suites covering the full public API.
+**60 tests** across 11 test suites covering the full public API.
 
 | Suite | Tests | What's Covered |
 |-------|-------|----------------|
@@ -605,21 +660,25 @@ unitsafe has three layers of testing:
 | valueOf | 1 | Extracts number, verifies type |
 | format | 3 | Default format, km format, precision option |
 | Checked mode | 6 | Factory availability, valid ops, mismatch throws |
+| String input — factories | 10 | String values, all units, arithmetic/conversions/comparisons/format |
+| String input — invalid | 4 | Non-numeric, empty, whitespace-only, unit-suffix strings |
+| String input — parse | 10 | All units, negatives, scientific notation, whitespace, error cases |
+| String input — checked mode | 3 | Checked factories and parse with strings |
 | Runtime representation | 2 | Value/metadata access, minimal footprint |
 
 **Example test output:**
 
 ```
- ✓ test/acceptance.test.ts (32 tests) 3ms
+ ✓ test/acceptance.test.ts (60 tests) 3ms
 
  Test Files  1 passed (1)
-      Tests  32 passed (32)
+      Tests  60 passed (60)
    Duration  99ms
 ```
 
 ### Type-Level Tests
 
-**20+ type assertions** using [tsd](https://github.com/tsdjs/tsd), verifying both positive and negative cases.
+**27+ type assertions** using [tsd](https://github.com/tsdjs/tsd), verifying both positive and negative cases.
 
 **Positive assertions (should compile):**
 
@@ -634,6 +693,14 @@ unitsafe has three layers of testing:
 | `to(m, km(1))` | Same-dimension conversion compiles |
 | `lt(m(1), m(2))` | Same-dimension comparison returns `boolean` |
 | `valueOf(m(5))` | Returns `number` |
+| `m('5')` | String input returns `Quantity<[1,0,0,0,0,0,0], 'm'>` |
+| `km('2.5')` | String input returns correct km type |
+| `s('10')` | String input returns correct time type |
+| `kg('75')` | String input returns correct mass type |
+| `scalar('1')` | String input returns correct scalar type |
+| `add(m('1'), m('2'))` | String-created quantities work with add |
+| `valueOf(m('5'))` | String-created quantity returns `number` |
+| `parse('5 m')` | Returns `Quantity`, `valueOf` returns `number` |
 
 **Negative assertions (must NOT compile):**
 
@@ -762,9 +829,9 @@ This causes exponential type instantiation depth for compositions like `mul(mul(
 ```
 unitsafe/
 ├── src/
-│   └── index.ts          # Entire library: types, units, operations, checked mode
+│   └── index.ts          # Entire library: types, units, operations, parse, checked mode
 ├── test/
-│   └── acceptance.test.ts # 32 runtime tests (Vitest)
+│   └── acceptance.test.ts # 60 runtime tests (Vitest)
 ├── type-tests/
 │   └── index.test-d.ts   # Type-level assertions (tsd)
 ├── bench/
@@ -778,7 +845,7 @@ unitsafe/
 └── README.md
 ```
 
-The entire library is a **single source file** (`src/index.ts`, ~300 lines). This is intentional — the codebase is small enough that splitting it would add complexity without benefit.
+The entire library is a **single source file** (`src/index.ts`). This is intentional — the codebase is small enough that splitting it would add complexity without benefit.
 
 ---
 

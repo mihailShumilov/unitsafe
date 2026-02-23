@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **String input for unit factories** — All 11 factories (`m`, `km`, `cm`, `mm`, `s`, `ms`, `min`, `h`, `kg`, `g`, `scalar`) now accept `number | string`. String values are trimmed of whitespace, parsed via `Number()`, and throw a `TypeError` on empty or non-numeric input. Scientific notation is supported.
+- **`parse(input)` function** — Parses a `"<value> <unit>"` string (e.g., `parse('5 m')`, `parse('1.5 km')`) into a `Quantity`. Handles negative values, scientific notation, and extra whitespace. Throws a `TypeError` on unknown units, missing value or unit, empty input, and non-numeric values. Available from both the top-level export and `createChecked()`.
+- **28 new runtime tests** covering string factory input, invalid string error cases, `parse` across all 11 built-in units, and checked-mode string input (60 tests total).
+- **7 new type-level tests** asserting that string-input factories return the same specific `Quantity` types as their numeric counterparts, and that `parse` returns a `Quantity` from which `valueOf` extracts a `number`.
+
 ## [0.1.0] - 2026-02-23
 
 ### Added
