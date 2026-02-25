@@ -44,7 +44,7 @@ pnpm test && pnpm typecheck && pnpm build && pnpm type-tests && pnpm bench
 
 | Script | Tool | What It Checks |
 |--------|------|----------------|
-| `pnpm test` | Vitest | Runtime correctness (60 tests) |
+| `pnpm test` | Vitest | Runtime correctness (486 tests) |
 | `pnpm typecheck` | tsc --noEmit | Source type safety |
 | `pnpm build` | tsup | ESM + CJS + .d.ts generation |
 | `pnpm type-tests` | tsd | Compile-time safety guarantees |
@@ -54,18 +54,31 @@ All five must pass. `pnpm type-tests` requires a prior `pnpm build` because tsd 
 
 ## Code Organization
 
-The entire library lives in a single file: `src/index.ts`. This is intentional — at ~300 lines, the codebase is small enough that splitting would add navigational overhead without architectural benefit.
+The entire library lives in a single file: `src/index.ts`. This is intentional — the file is large in line count due to the lookup tables, dimension type aliases, and 110 unit definitions, but it is architecturally flat and easy to navigate.
 
 The file is organized in layers:
 
 ```
 src/index.ts
 ├── Type-level integer arithmetic (AddMap, SubMap)
-├── Dimension vectors (Dim, DimMul, DimDiv)
-├── Quantity interface
-├── UnitFactory interface
+├── Dimension vectors (Dim, DimMul, DimDiv, dimension aliases)
+├── Quantity interface (including _o offset property)
+├── UnitFactory interface (including _offset property)
 ├── String coercion helper (toNum)
-├── Built-in units (m, km, cm, mm, s, ms, min, h, kg, g, scalar)
+├── Built-in units
+│   ├── Length (m, km, cm, mm, nm, um, dm, inch, ft, yd, mi, nmi, mil, au, ly, pc, pl)
+│   ├── Mass (kg, g, lb, oz, ug, mg, t, st, ton, lton, dalton, plm)
+│   ├── Time (s, ms, min, h, ns, us, d, week, month, yr, decade, century, plt)
+│   ├── Temperature (K, C, F, R, pT)
+│   ├── Area (mm2, cm2, m2, ha, km2, in2, ft2, yd2, ac, mi2, pla)
+│   ├── Volume (ml, cl, l, m3, tsp, tbsp, floz, cup, pt_liq, qt, gal, plv)
+│   ├── Velocity (mps, kmh, fps, mph, kn, pvel)
+│   ├── Force (N, kN, lbf, dyn, pfo)
+│   ├── Energy (J, kJ, cal, kcal, Wh, kWh, eV, BTU, pene)
+│   ├── Power (W, kW, MW, hp, ppow)
+│   ├── Pressure (Pa, kPa, bar, psi, atm, mmHg, ppre)
+│   ├── Digital Storage (b, B, KB, MB, GB, TB, PB)
+│   └── Dimensionless (scalar)
 ├── Core operations (add, sub, mul, div)
 ├── Conversion (to)
 ├── Comparisons (eq, lt, lte, gt, gte)
@@ -85,16 +98,16 @@ src/index.ts
 
 ### Performance
 
-- **No class instances.** Quantities are plain object literals `{ _v, _s, _l }`.
+- **No class instances.** Quantities are plain object literals `{ _v, _s, _l, _o }`.
 - **No prototype chains.** No `Object.create`, no class hierarchies.
-- **Monomorphic shapes.** All quantity objects must have the same properties in the same order.
+- **Monomorphic shapes.** All quantity objects must have the same four properties in the same order: `_v`, `_s`, `_l`, `_o`.
 - **No closures in hot paths.** Factory functions use `Object.assign` rather than closure-based approaches.
 - **Minimize allocations.** Each operation creates exactly one new object — avoid intermediate objects.
 
 ### Naming
 
 - Public API: short, ergonomic names (`m`, `km`, `add`, `to`, `valueOf`)
-- Internal properties: prefixed with `_` (`_v`, `_s`, `_l`, `_scale`, `_label`, `_dim`)
+- Internal properties: prefixed with `_` (`_v`, `_s`, `_l`, `_o`, `_scale`, `_label`, `_dim`, `_offset`)
 - Type parameters: descriptive (`D extends Dim`, `L extends string`, `DA`, `DB` for two dimensions)
 - Phantom type properties: prefixed with `__phantom_`
 
@@ -106,61 +119,63 @@ src/index.ts
 
 ## Adding a New Unit
 
-To add a new built-in unit (e.g., miles):
+To add a new built-in unit to an existing dimension (e.g., a new length unit `furlong`):
 
-1. **Define the dimension type** if new (e.g., `DimLength` already exists for length).
+1. **Check the dimension type** — for length, `DimLength = [1, 0, 0, 0, 0, 0, 0, 0]` already exists.
 
-2. **Add the unit factory** in `src/index.ts`. The factory function must accept `number | string` — use the internal `toNum` helper to handle string coercion:
+2. **Add the unit factory** in `src/index.ts`. The factory function must accept `number | string` — use the internal `toNum` helper to handle string coercion. Include `_o: 0` in the quantity return and `_offset: 0` in the metadata (non-temperature units always have zero offset):
 
 ```typescript
-export const mi: UnitFactory<DimLength, 'mi'> = Object.assign(
-  (v: number | string): Quantity<DimLength, 'mi'> => ({ _v: toNum(v, 'mi'), _s: 1609.344, _l: 'mi' }),
-  { _scale: 1609.344, _label: 'mi', _dim: [1,0,0,0,0,0,0] as DimLength },
+export const furlong: UnitFactory<DimLength, 'furlong'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'furlong'> => ({
+    _v: toNum(v, 'furlong'), _s: 201.168, _l: 'furlong', _o: 0,
+  }),
+  { _scale: 201.168, _label: 'furlong', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
 );
 ```
 
-3. **Register in checked mode** — add `mi` to the `allFactories` array in `createChecked()`.
+3. **Register in checked mode** — add `furlong` to the `allFactories` array in `createChecked()`.
 
 4. **Add it to the return object** of `createChecked()`.
 
-5. **Register in `parse()`** — add `mi` to the `factories` record inside the `parse` function body so that `parse('1 mi')` works:
+5. **Register in `parse()`** — add `furlong` to the `factories` record inside the `parse` function body so that `parse('1 furlong')` works:
 
 ```typescript
 const factories: Record<string, UnitFactory<Dim, string>> = {
-  m, km, cm, mm, s, ms, min, h, kg, g, scalar, mi,  // add here
+  m, km, cm, mm, /* ... */, furlong,  // add here
 };
 ```
 
 6. **Add runtime tests** in `test/acceptance.test.ts`. Include both numeric and string input:
 
 ```typescript
-it('converts mi to m', () => {
-  const result = to(m, mi(1));
-  expect(valueOf(result)).toBeCloseTo(1609.344);
+it('converts furlong to m', () => {
+  const result = to(m, furlong(1));
+  expect(valueOf(result)).toBeCloseTo(201.168);
 });
 
-it('mi factory accepts string input', () => {
-  expect(valueOf(mi('1.5'))).toBe(1.5);
+it('furlong factory accepts string input', () => {
+  expect(valueOf(furlong('1.5'))).toBe(1.5);
 });
 
-it('parse handles mi unit', () => {
-  const result = parse('1 mi');
+it('parse handles furlong unit', () => {
+  const result = parse('1 furlong');
   expect(valueOf(result)).toBe(1);
-  expect(result._l).toBe('mi');
+  expect(result._l).toBe('furlong');
 });
 ```
 
 7. **Add type tests** in `type-tests/index.test-d.ts`. Include string input:
 
 ```typescript
-expectType<Quantity<[1,0,0,0,0,0,0], 'mi'>>(mi(1));
-expectType<Quantity<[1,0,0,0,0,0,0], 'mi'>>(mi('1'));
-expectError(add(mi(1), s(1))); // different dimensions
+expectType<Quantity<[1,0,0,0,0,0,0,0], 'furlong'>>(furlong(1));
+expectType<Quantity<[1,0,0,0,0,0,0,0], 'furlong'>>(furlong('1'));
+expectError(add(furlong(1), s(1))); // different dimensions
 ```
 
 8. **Export** from `src/index.ts` (already exported if using `export const`).
 
-9. **Document** in the README's unit factory table.
+9. **Document** in the README's unit factory table and Unit Reference section.
 
 10. **Run the full pipeline:**
 
@@ -168,19 +183,31 @@ expectError(add(mi(1), s(1))); // different dimensions
 pnpm test && pnpm typecheck && pnpm build && pnpm type-tests
 ```
 
-## Adding a New Dimension
+### Adding a Temperature Unit (Affine Offset)
 
-To add support for a new base dimension (e.g., electric current):
+Temperature units differ from all other units in that they require an **additive offset** alongside the scale factor. The conversion formula is `SI_value = value × scale + offset`.
 
-1. The dimension type already exists in the exponent vector at position `[3]` (Current). Define a named alias:
+Example — adding a hypothetical unit `myTemp` with scale `2` and offset `100 K`:
 
 ```typescript
-type DimCurrent = [0, 0, 0, 1, 0, 0, 0];
+export const myTemp: UnitFactory<DimTemperature, 'myTemp'> = Object.assign(
+  (v: number | string): Quantity<DimTemperature, 'myTemp'> => ({
+    _v: toNum(v, 'myTemp'), _s: 2, _l: 'myTemp', _o: 100,
+  }),
+  { _scale: 2, _label: 'myTemp', _dim: [0,0,0,0,1,0,0,0] as DimTemperature, _offset: 100 },
+);
 ```
 
-2. Add unit factories (e.g., ampere, milliampere) following the pattern above.
+The `to()` function automatically handles the offset:
+`result = (value × sourceScale + sourceOffset − targetOffset) / targetScale`
 
-3. Add tests verifying that current quantities cannot be added to length/time/mass quantities.
+## Adding a New Dimension
+
+To add support for a new base dimension:
+
+1. The `Dim` type is an 8-element tuple. Positions 0–6 are the seven SI base quantities; position 7 is Data. Adding a 9th base dimension would require extending the `Dim` type, the `DimMul` and `DimDiv` computed types, and the `AddMap`/`SubMap` lookup tables. This is a significant change — open an issue for discussion first.
+
+2. For adding units to **existing** dimensions (including Data at position 7), follow the standard "Adding a New Unit" process above.
 
 ## Pull Request Process
 

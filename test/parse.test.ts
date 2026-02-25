@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   parse, valueOf,
-  m, km, cm, mm, s, ms, min, h, kg, g, scalar,
+  m, km, cm, mm, inch, ft, yd, mi,
+  s, ms, min, h,
+  kg, g, lb, oz,
+  scalar,
 } from '../src/index.js';
 
 describe('parse — exhaustive scenarios', () => {
@@ -13,9 +16,12 @@ describe('parse — exhaustive scenarios', () => {
     it('parses single digit with every unit', () => {
       const cases: [string, number, string][] = [
         ['0 m', 0, 'm'], ['1 km', 1, 'km'], ['2 cm', 2, 'cm'],
-        ['3 mm', 3, 'mm'], ['4 s', 4, 's'], ['5 ms', 5, 'ms'],
+        ['3 mm', 3, 'mm'], ['1 in', 1, 'in'], ['2 ft', 2, 'ft'],
+        ['3 yd', 3, 'yd'], ['4 mi', 4, 'mi'],
+        ['4 s', 4, 's'], ['5 ms', 5, 'ms'],
         ['6 min', 6, 'min'], ['7 h', 7, 'h'], ['8 kg', 8, 'kg'],
-        ['9 g', 9, 'g'], ['1 scalar', 1, 'scalar'],
+        ['9 g', 9, 'g'], ['5 lb', 5, 'lb'], ['6 oz', 6, 'oz'],
+        ['1 scalar', 1, 'scalar'],
       ];
       for (const [input, val, label] of cases) {
         const q = parse(input);
@@ -331,6 +337,22 @@ describe('parse — exhaustive scenarios', () => {
       expect(parse('1 mm')._s).toBe(0.001);
     });
 
+    it('in has scale 0.0254', () => {
+      expect(parse('1 in')._s).toBe(0.0254);
+    });
+
+    it('ft has scale 0.3048', () => {
+      expect(parse('1 ft')._s).toBe(0.3048);
+    });
+
+    it('yd has scale 0.9144', () => {
+      expect(parse('1 yd')._s).toBe(0.9144);
+    });
+
+    it('mi has scale 1609.344', () => {
+      expect(parse('1 mi')._s).toBe(1609.344);
+    });
+
     it('s has scale 1', () => {
       expect(parse('1 s')._s).toBe(1);
     });
@@ -353,6 +375,14 @@ describe('parse — exhaustive scenarios', () => {
 
     it('g has scale 0.001', () => {
       expect(parse('1 g')._s).toBe(0.001);
+    });
+
+    it('lb has scale 0.45359237', () => {
+      expect(parse('1 lb')._s).toBe(0.45359237);
+    });
+
+    it('oz has scale 0.028349523125', () => {
+      expect(parse('1 oz')._s).toBe(0.028349523125);
     });
 
     it('scalar has scale 1', () => {
@@ -464,28 +494,36 @@ describe('parse — exhaustive scenarios', () => {
   // ═══════════════════════════════════════════════════════════════════
 
   describe('unknown unit labels', () => {
-    it('throws on "miles"', () => {
+    it('throws on "miles" (full word instead of "mi")', () => {
       expect(() => parse('5 miles')).toThrow(TypeError);
     });
 
-    it('throws on "ft" (feet)', () => {
-      expect(() => parse('5 ft')).toThrow(TypeError);
+    it('throws on "feet" (full word instead of "ft")', () => {
+      expect(() => parse('5 feet')).toThrow(TypeError);
     });
 
-    it('throws on "inch"', () => {
+    it('throws on "inch" (full word instead of "in")', () => {
       expect(() => parse('12 inch')).toThrow(TypeError);
     });
 
-    it('throws on "lb" (pounds)', () => {
-      expect(() => parse('100 lb')).toThrow(TypeError);
+    it('throws on "inches" (plural instead of "in")', () => {
+      expect(() => parse('12 inches')).toThrow(TypeError);
     });
 
-    it('throws on "oz" (ounces)', () => {
-      expect(() => parse('8 oz')).toThrow(TypeError);
+    it('throws on "pounds" (full word instead of "lb")', () => {
+      expect(() => parse('100 pounds')).toThrow(TypeError);
     });
 
-    it('throws on "yard"', () => {
+    it('throws on "ounces" (full word instead of "oz")', () => {
+      expect(() => parse('8 ounces')).toThrow(TypeError);
+    });
+
+    it('throws on "yard" (full word instead of "yd")', () => {
       expect(() => parse('3 yard')).toThrow(TypeError);
+    });
+
+    it('throws on "yards" (plural instead of "yd")', () => {
+      expect(() => parse('3 yards')).toThrow(TypeError);
     });
 
     it('throws on "meter" (full word instead of "m")', () => {
@@ -512,16 +550,19 @@ describe('parse — exhaustive scenarios', () => {
       expect(() => parse('100 celsius')).toThrow(TypeError);
     });
 
-    it('throws on "K" (kelvin, not supported)', () => {
-      expect(() => parse('273 K')).toThrow(TypeError);
+    it('parses "273 K" as kelvin (now supported)', () => {
+      expect(valueOf(parse('273 K'))).toBe(273);
+      expect(parse('273 K')._l).toBe('K');
     });
 
-    it('throws on "N" (newton)', () => {
-      expect(() => parse('10 N')).toThrow(TypeError);
+    it('parses "10 N" as newton (now supported)', () => {
+      expect(valueOf(parse('10 N'))).toBe(10);
+      expect(parse('10 N')._l).toBe('N');
     });
 
-    it('throws on "Pa" (pascal)', () => {
-      expect(() => parse('101325 Pa')).toThrow(TypeError);
+    it('parses "101325 Pa" as pascal (now supported)', () => {
+      expect(valueOf(parse('101325 Pa'))).toBe(101325);
+      expect(parse('101325 Pa')._l).toBe('Pa');
     });
   });
 
@@ -749,12 +790,14 @@ describe('parse — exhaustive scenarios', () => {
   // ═══════════════════════════════════════════════════════════════════
 
   describe('near-miss unit names that are NOT valid', () => {
-    it('throws on "5 km/h" (composite unit is not a factory)', () => {
-      expect(() => parse('5 km/h')).toThrow(TypeError);
+    it('parses "5 km/h" as velocity (now supported)', () => {
+      expect(valueOf(parse('5 km/h'))).toBe(5);
+      expect(parse('5 km/h')._l).toBe('km/h');
     });
 
-    it('throws on "5 m/s"', () => {
-      expect(() => parse('5 m/s')).toThrow(TypeError);
+    it('parses "5 m/s" as velocity (now supported)', () => {
+      expect(valueOf(parse('5 m/s'))).toBe(5);
+      expect(parse('5 m/s')._l).toBe('m/s');
     });
 
     it('throws on "5 m^2"', () => {
@@ -846,6 +889,22 @@ describe('parse — exhaustive scenarios', () => {
       expect(valueOf(parse('-1.5 mm'))).toBe(-1.5);
     });
 
+    it('-12 in', () => {
+      expect(valueOf(parse('-12 in'))).toBe(-12);
+    });
+
+    it('-6 ft', () => {
+      expect(valueOf(parse('-6 ft'))).toBe(-6);
+    });
+
+    it('-100 yd', () => {
+      expect(valueOf(parse('-100 yd'))).toBe(-100);
+    });
+
+    it('-26.2 mi', () => {
+      expect(valueOf(parse('-26.2 mi'))).toBeCloseTo(-26.2);
+    });
+
     it('-30 s', () => {
       expect(valueOf(parse('-30 s'))).toBe(-30);
     });
@@ -868,6 +927,14 @@ describe('parse — exhaustive scenarios', () => {
 
     it('-250 g', () => {
       expect(valueOf(parse('-250 g'))).toBe(-250);
+    });
+
+    it('-150 lb', () => {
+      expect(valueOf(parse('-150 lb'))).toBe(-150);
+    });
+
+    it('-8 oz', () => {
+      expect(valueOf(parse('-8 oz'))).toBe(-8);
     });
 
     it('-1 scalar', () => {
@@ -1047,12 +1114,18 @@ describe('parse — exhaustive scenarios', () => {
         ['7.5 km', km(7.5)],
         ['7.5 cm', cm(7.5)],
         ['7.5 mm', mm(7.5)],
+        ['7.5 in', inch(7.5)],
+        ['7.5 ft', ft(7.5)],
+        ['7.5 yd', yd(7.5)],
+        ['7.5 mi', mi(7.5)],
         ['7.5 s', s(7.5)],
         ['7.5 ms', ms(7.5)],
         ['7.5 min', min(7.5)],
         ['7.5 h', h(7.5)],
         ['7.5 kg', kg(7.5)],
         ['7.5 g', g(7.5)],
+        ['7.5 lb', lb(7.5)],
+        ['7.5 oz', oz(7.5)],
         ['7.5 scalar', scalar(7.5)],
       ];
 
@@ -1148,6 +1221,12 @@ describe('parse — exhaustive scenarios', () => {
       ['007 m', 7, 'm'],
       ['00100 cm', 100, 'cm'],
       ['+.5e+2 kg', 50, 'kg'],
+      ['12 in', 12, 'in'],
+      ['5280 ft', 5280, 'ft'],
+      ['100 yd', 100, 'yd'],
+      ['26.2 mi', 26.2, 'mi'],
+      ['150 lb', 150, 'lb'],
+      ['8 oz', 8, 'oz'],
     ];
 
     for (const [input, expectedVal, expectedLabel] of valid) {
@@ -1162,7 +1241,7 @@ describe('parse — exhaustive scenarios', () => {
       '', '  ', '5', 'm', '5m', 'm5',
       '5 M', '5 KM', '5 meters',
       'abc m', 'NaN s', '5,5 m',
-      '5 m/s', '5 m^2', '5 m*m',
+      '5 m^2', '5 m*m',
       '--5 m', '++5 m', '5..5 m',
       '5 5 5', '. m', 'e5 m',
       '5 .', '5 1', '5 5',

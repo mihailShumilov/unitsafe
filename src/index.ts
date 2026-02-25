@@ -175,7 +175,7 @@ type IntSub<A extends Int, B extends Int> = SubMap[A][B];
  * @example
  * ```typescript
  * // Length (meters): L^1
- * type DimLength = [1, 0, 0, 0, 0, 0, 0];
+ * type DimLength = [1, 0, 0, 0, 0, 0, 0, 0];
  *
  * // Velocity (m/s): L^1 * T^-1
  * type DimVelocity = [1, 0, -1, 0, 0, 0, 0];
@@ -186,7 +186,7 @@ type IntSub<A extends Int, B extends Int> = SubMap[A][B];
  *
  * @internal
  */
-type Dim = readonly [Int, Int, Int, Int, Int, Int, Int];
+type Dim = readonly [Int, Int, Int, Int, Int, Int, Int, Int];
 
 /**
  * Computes the dimension vector for the product of two quantities.
@@ -212,6 +212,7 @@ type Dim = readonly [Int, Int, Int, Int, Int, Int, Int];
 type DimMul<A extends Dim, B extends Dim> = [
   IntAdd<A[0], B[0]>, IntAdd<A[1], B[1]>, IntAdd<A[2], B[2]>,
   IntAdd<A[3], B[3]>, IntAdd<A[4], B[4]>, IntAdd<A[5], B[5]>, IntAdd<A[6], B[6]>,
+  IntAdd<A[7], B[7]>,
 ];
 
 /**
@@ -238,6 +239,7 @@ type DimMul<A extends Dim, B extends Dim> = [
 type DimDiv<A extends Dim, B extends Dim> = [
   IntSub<A[0], B[0]>, IntSub<A[1], B[1]>, IntSub<A[2], B[2]>,
   IntSub<A[3], B[3]>, IntSub<A[4], B[4]>, IntSub<A[5], B[5]>, IntSub<A[6], B[6]>,
+  IntSub<A[7], B[7]>,
 ];
 
 /**
@@ -248,7 +250,7 @@ type DimDiv<A extends Dim, B extends Dim> = [
  *
  * @internal
  */
-type DimScalar = [0, 0, 0, 0, 0, 0, 0];
+type DimScalar = [0, 0, 0, 0, 0, 0, 0, 0];
 
 /**
  * Dimension vector for length (L^1).
@@ -257,7 +259,7 @@ type DimScalar = [0, 0, 0, 0, 0, 0, 0];
  *
  * @internal
  */
-type DimLength = [1, 0, 0, 0, 0, 0, 0];
+type DimLength = [1, 0, 0, 0, 0, 0, 0, 0];
 
 /**
  * Dimension vector for mass (M^1).
@@ -266,7 +268,7 @@ type DimLength = [1, 0, 0, 0, 0, 0, 0];
  *
  * @internal
  */
-type DimMass   = [0, 1, 0, 0, 0, 0, 0];
+type DimMass   = [0, 1, 0, 0, 0, 0, 0, 0];
 
 /**
  * Dimension vector for time (T^1).
@@ -275,7 +277,17 @@ type DimMass   = [0, 1, 0, 0, 0, 0, 0];
  *
  * @internal
  */
-type DimTime   = [0, 0, 1, 0, 0, 0, 0];
+type DimTime   = [0, 0, 1, 0, 0, 0, 0, 0];
+
+type DimTemperature = [0, 0, 0, 0, 1, 0, 0, 0];
+type DimArea        = [2, 0, 0, 0, 0, 0, 0, 0];
+type DimVolume      = [3, 0, 0, 0, 0, 0, 0, 0];
+type DimVelocity    = [1, 0, -1, 0, 0, 0, 0, 0];
+type DimForce       = [1, 1, -2, 0, 0, 0, 0, 0];
+type DimEnergy      = [2, 1, -2, 0, 0, 0, 0, 0];
+type DimPower       = [2, 1, -3, 0, 0, 0, 0, 0];
+type DimPressure    = [-1, 1, -2, 0, 0, 0, 0, 0];
+type DimData        = [0, 0, 0, 0, 0, 0, 0, 1];
 
 // ═══════════════════════════════════════════════════════════════════════
 // LAYER 2: Runtime Representation
@@ -340,6 +352,15 @@ export interface Quantity<D extends Dim = Dim, L extends string = string> {
    * (e.g., `"m*m"`, `"m/s"`).
    */
   readonly _l: string;
+
+  /**
+   * The SI offset for affine temperature conversions.
+   *
+   * For most units this is `0`. For temperature units like Celsius
+   * and Fahrenheit, this encodes the additive offset so that
+   * `SI_value = _v * _s + _o`.
+   */
+  readonly _o: number;
 
   /**
    * Phantom property carrying the dimension vector at the type level.
@@ -416,6 +437,9 @@ export interface UnitFactory<D extends Dim, L extends string> {
 
   /** The dimension vector for this unit, accessible at runtime for checked-mode validation. */
   readonly _dim: D;
+
+  /** The SI offset for affine conversions (e.g., temperature). 0 for most units. */
+  readonly _offset: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -466,8 +490,8 @@ function toNum(v: number | string, label: string): number {
  * ```
  */
 export const m: UnitFactory<DimLength, 'm'> = Object.assign(
-  (v: number | string): Quantity<DimLength, 'm'> => ({ _v: toNum(v, 'm'), _s: 1, _l: 'm' }),
-  { _scale: 1, _label: 'm', _dim: [1,0,0,0,0,0,0] as DimLength },
+  (v: number | string): Quantity<DimLength, 'm'> => ({ _v: toNum(v, 'm'), _s: 1, _l: 'm', _o: 0 }),
+  { _scale: 1, _label: 'm', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
 );
 
 /**
@@ -483,8 +507,8 @@ export const m: UnitFactory<DimLength, 'm'> = Object.assign(
  * ```
  */
 export const km: UnitFactory<DimLength, 'km'> = Object.assign(
-  (v: number | string): Quantity<DimLength, 'km'> => ({ _v: toNum(v, 'km'), _s: 1000, _l: 'km' }),
-  { _scale: 1000, _label: 'km', _dim: [1,0,0,0,0,0,0] as DimLength },
+  (v: number | string): Quantity<DimLength, 'km'> => ({ _v: toNum(v, 'km'), _s: 1000, _l: 'km', _o: 0 }),
+  { _scale: 1000, _label: 'km', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
 );
 
 /**
@@ -500,8 +524,8 @@ export const km: UnitFactory<DimLength, 'km'> = Object.assign(
  * ```
  */
 export const cm: UnitFactory<DimLength, 'cm'> = Object.assign(
-  (v: number | string): Quantity<DimLength, 'cm'> => ({ _v: toNum(v, 'cm'), _s: 0.01, _l: 'cm' }),
-  { _scale: 0.01, _label: 'cm', _dim: [1,0,0,0,0,0,0] as DimLength },
+  (v: number | string): Quantity<DimLength, 'cm'> => ({ _v: toNum(v, 'cm'), _s: 0.01, _l: 'cm', _o: 0 }),
+  { _scale: 0.01, _label: 'cm', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
 );
 
 /**
@@ -517,8 +541,80 @@ export const cm: UnitFactory<DimLength, 'cm'> = Object.assign(
  * ```
  */
 export const mm: UnitFactory<DimLength, 'mm'> = Object.assign(
-  (v: number | string): Quantity<DimLength, 'mm'> => ({ _v: toNum(v, 'mm'), _s: 0.001, _l: 'mm' }),
-  { _scale: 0.001, _label: 'mm', _dim: [1,0,0,0,0,0,0] as DimLength },
+  (v: number | string): Quantity<DimLength, 'mm'> => ({ _v: toNum(v, 'mm'), _s: 0.001, _l: 'mm', _o: 0 }),
+  { _scale: 0.001, _label: 'mm', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+/**
+ * Creates a length quantity in **inches** (1 in = 0.0254 m).
+ *
+ * Exported as `inch` because `in` is a reserved keyword in JavaScript.
+ * The unit label is `'in'`.
+ *
+ * @param v - Numeric value in inches
+ * @returns A `Quantity` with dimension Length and label `'in'`
+ *
+ * @example
+ * ```typescript
+ * const width = inch(12);
+ * valueOf(to(m, width)); // 0.3048
+ * valueOf(to(ft, width)); // 1
+ * ```
+ */
+export const inch: UnitFactory<DimLength, 'in'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'in'> => ({ _v: toNum(v, 'in'), _s: 0.0254, _l: 'in', _o: 0 }),
+  { _scale: 0.0254, _label: 'in', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+/**
+ * Creates a length quantity in **feet** (1 ft = 0.3048 m).
+ *
+ * @param v - Numeric value in feet
+ * @returns A `Quantity` with dimension Length and label `'ft'`
+ *
+ * @example
+ * ```typescript
+ * const height = ft(6);
+ * valueOf(to(m, height)); // 1.8288
+ * ```
+ */
+export const ft: UnitFactory<DimLength, 'ft'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'ft'> => ({ _v: toNum(v, 'ft'), _s: 0.3048, _l: 'ft', _o: 0 }),
+  { _scale: 0.3048, _label: 'ft', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+/**
+ * Creates a length quantity in **yards** (1 yd = 0.9144 m).
+ *
+ * @param v - Numeric value in yards
+ * @returns A `Quantity` with dimension Length and label `'yd'`
+ *
+ * @example
+ * ```typescript
+ * const field = yd(100);
+ * valueOf(to(m, field)); // 91.44
+ * ```
+ */
+export const yd: UnitFactory<DimLength, 'yd'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'yd'> => ({ _v: toNum(v, 'yd'), _s: 0.9144, _l: 'yd', _o: 0 }),
+  { _scale: 0.9144, _label: 'yd', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+/**
+ * Creates a length quantity in **miles** (1 mi = 1609.344 m).
+ *
+ * @param v - Numeric value in miles
+ * @returns A `Quantity` with dimension Length and label `'mi'`
+ *
+ * @example
+ * ```typescript
+ * const marathon = mi(26.2);
+ * valueOf(to(km, marathon)); // ≈ 42.165
+ * ```
+ */
+export const mi: UnitFactory<DimLength, 'mi'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'mi'> => ({ _v: toNum(v, 'mi'), _s: 1609.344, _l: 'mi', _o: 0 }),
+  { _scale: 1609.344, _label: 'mi', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
 );
 
 /**
@@ -534,8 +630,8 @@ export const mm: UnitFactory<DimLength, 'mm'> = Object.assign(
  * ```
  */
 export const s: UnitFactory<DimTime, 's'> = Object.assign(
-  (v: number | string): Quantity<DimTime, 's'> => ({ _v: toNum(v, 's'), _s: 1, _l: 's' }),
-  { _scale: 1, _label: 's', _dim: [0,0,1,0,0,0,0] as DimTime },
+  (v: number | string): Quantity<DimTime, 's'> => ({ _v: toNum(v, 's'), _s: 1, _l: 's', _o: 0 }),
+  { _scale: 1, _label: 's', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
 );
 
 /**
@@ -551,8 +647,8 @@ export const s: UnitFactory<DimTime, 's'> = Object.assign(
  * ```
  */
 export const ms: UnitFactory<DimTime, 'ms'> = Object.assign(
-  (v: number | string): Quantity<DimTime, 'ms'> => ({ _v: toNum(v, 'ms'), _s: 0.001, _l: 'ms' }),
-  { _scale: 0.001, _label: 'ms', _dim: [0,0,1,0,0,0,0] as DimTime },
+  (v: number | string): Quantity<DimTime, 'ms'> => ({ _v: toNum(v, 'ms'), _s: 0.001, _l: 'ms', _o: 0 }),
+  { _scale: 0.001, _label: 'ms', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
 );
 
 /**
@@ -568,8 +664,8 @@ export const ms: UnitFactory<DimTime, 'ms'> = Object.assign(
  * ```
  */
 export const min: UnitFactory<DimTime, 'min'> = Object.assign(
-  (v: number | string): Quantity<DimTime, 'min'> => ({ _v: toNum(v, 'min'), _s: 60, _l: 'min' }),
-  { _scale: 60, _label: 'min', _dim: [0,0,1,0,0,0,0] as DimTime },
+  (v: number | string): Quantity<DimTime, 'min'> => ({ _v: toNum(v, 'min'), _s: 60, _l: 'min', _o: 0 }),
+  { _scale: 60, _label: 'min', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
 );
 
 /**
@@ -585,8 +681,8 @@ export const min: UnitFactory<DimTime, 'min'> = Object.assign(
  * ```
  */
 export const h: UnitFactory<DimTime, 'h'> = Object.assign(
-  (v: number | string): Quantity<DimTime, 'h'> => ({ _v: toNum(v, 'h'), _s: 3600, _l: 'h' }),
-  { _scale: 3600, _label: 'h', _dim: [0,0,1,0,0,0,0] as DimTime },
+  (v: number | string): Quantity<DimTime, 'h'> => ({ _v: toNum(v, 'h'), _s: 3600, _l: 'h', _o: 0 }),
+  { _scale: 3600, _label: 'h', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
 );
 
 /**
@@ -602,8 +698,8 @@ export const h: UnitFactory<DimTime, 'h'> = Object.assign(
  * ```
  */
 export const kg: UnitFactory<DimMass, 'kg'> = Object.assign(
-  (v: number | string): Quantity<DimMass, 'kg'> => ({ _v: toNum(v, 'kg'), _s: 1, _l: 'kg' }),
-  { _scale: 1, _label: 'kg', _dim: [0,1,0,0,0,0,0] as DimMass },
+  (v: number | string): Quantity<DimMass, 'kg'> => ({ _v: toNum(v, 'kg'), _s: 1, _l: 'kg', _o: 0 }),
+  { _scale: 1, _label: 'kg', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
 );
 
 /**
@@ -619,8 +715,43 @@ export const kg: UnitFactory<DimMass, 'kg'> = Object.assign(
  * ```
  */
 export const g: UnitFactory<DimMass, 'g'> = Object.assign(
-  (v: number | string): Quantity<DimMass, 'g'> => ({ _v: toNum(v, 'g'), _s: 0.001, _l: 'g' }),
-  { _scale: 0.001, _label: 'g', _dim: [0,1,0,0,0,0,0] as DimMass },
+  (v: number | string): Quantity<DimMass, 'g'> => ({ _v: toNum(v, 'g'), _s: 0.001, _l: 'g', _o: 0 }),
+  { _scale: 0.001, _label: 'g', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+/**
+ * Creates a mass quantity in **pounds** (1 lb = 0.45359237 kg).
+ *
+ * @param v - Numeric value in pounds
+ * @returns A `Quantity` with dimension Mass and label `'lb'`
+ *
+ * @example
+ * ```typescript
+ * const weight = lb(150);
+ * valueOf(to(kg, weight)); // ≈ 68.04
+ * ```
+ */
+export const lb: UnitFactory<DimMass, 'lb'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'lb'> => ({ _v: toNum(v, 'lb'), _s: 0.45359237, _l: 'lb', _o: 0 }),
+  { _scale: 0.45359237, _label: 'lb', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+/**
+ * Creates a mass quantity in **ounces** (1 oz = 0.028349523125 kg).
+ *
+ * @param v - Numeric value in ounces
+ * @returns A `Quantity` with dimension Mass and label `'oz'`
+ *
+ * @example
+ * ```typescript
+ * const portion = oz(8);
+ * valueOf(to(g, portion)); // ≈ 226.796
+ * valueOf(to(lb, oz(16))); // ≈ 1
+ * ```
+ */
+export const oz: UnitFactory<DimMass, 'oz'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'oz'> => ({ _v: toNum(v, 'oz'), _s: 0.028349523125, _l: 'oz', _o: 0 }),
+  { _scale: 0.028349523125, _label: 'oz', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
 );
 
 /**
@@ -643,8 +774,521 @@ export const g: UnitFactory<DimMass, 'g'> = Object.assign(
  * ```
  */
 export const scalar: UnitFactory<DimScalar, 'scalar'> = Object.assign(
-  (v: number | string): Quantity<DimScalar, 'scalar'> => ({ _v: toNum(v, 'scalar'), _s: 1, _l: 'scalar' }),
-  { _scale: 1, _label: 'scalar', _dim: [0,0,0,0,0,0,0] as DimScalar },
+  (v: number | string): Quantity<DimScalar, 'scalar'> => ({ _v: toNum(v, 'scalar'), _s: 1, _l: 'scalar', _o: 0 }),
+  { _scale: 1, _label: 'scalar', _dim: [0,0,0,0,0,0,0,0] as DimScalar, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// New Length Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const nm: UnitFactory<DimLength, 'nm'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'nm'> => ({ _v: toNum(v, 'nm'), _s: 1e-9, _l: 'nm', _o: 0 }),
+  { _scale: 1e-9, _label: 'nm', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const um: UnitFactory<DimLength, 'um'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'um'> => ({ _v: toNum(v, 'um'), _s: 1e-6, _l: 'um', _o: 0 }),
+  { _scale: 1e-6, _label: 'um', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const dm: UnitFactory<DimLength, 'dm'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'dm'> => ({ _v: toNum(v, 'dm'), _s: 0.1, _l: 'dm', _o: 0 }),
+  { _scale: 0.1, _label: 'dm', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const nmi: UnitFactory<DimLength, 'nmi'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'nmi'> => ({ _v: toNum(v, 'nmi'), _s: 1852, _l: 'nmi', _o: 0 }),
+  { _scale: 1852, _label: 'nmi', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const mil: UnitFactory<DimLength, 'mil'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'mil'> => ({ _v: toNum(v, 'mil'), _s: 2.54e-5, _l: 'mil', _o: 0 }),
+  { _scale: 2.54e-5, _label: 'mil', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const au: UnitFactory<DimLength, 'au'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'au'> => ({ _v: toNum(v, 'au'), _s: 1.495978707e11, _l: 'au', _o: 0 }),
+  { _scale: 1.495978707e11, _label: 'au', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const ly: UnitFactory<DimLength, 'ly'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'ly'> => ({ _v: toNum(v, 'ly'), _s: 9.4607304725808e15, _l: 'ly', _o: 0 }),
+  { _scale: 9.4607304725808e15, _label: 'ly', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const pc: UnitFactory<DimLength, 'pc'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'pc'> => ({ _v: toNum(v, 'pc'), _s: 3.0856775814913673e16, _l: 'pc', _o: 0 }),
+  { _scale: 3.0856775814913673e16, _label: 'pc', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+export const pl: UnitFactory<DimLength, 'pl'> = Object.assign(
+  (v: number | string): Quantity<DimLength, 'pl'> => ({ _v: toNum(v, 'pl'), _s: 1.616255e-35, _l: 'pl', _o: 0 }),
+  { _scale: 1.616255e-35, _label: 'pl', _dim: [1,0,0,0,0,0,0,0] as DimLength, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// New Mass Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const ug: UnitFactory<DimMass, 'ug'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'ug'> => ({ _v: toNum(v, 'ug'), _s: 1e-9, _l: 'ug', _o: 0 }),
+  { _scale: 1e-9, _label: 'ug', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+export const mg: UnitFactory<DimMass, 'mg'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'mg'> => ({ _v: toNum(v, 'mg'), _s: 1e-6, _l: 'mg', _o: 0 }),
+  { _scale: 1e-6, _label: 'mg', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+export const t: UnitFactory<DimMass, 't'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 't'> => ({ _v: toNum(v, 't'), _s: 1000, _l: 't', _o: 0 }),
+  { _scale: 1000, _label: 't', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+export const st: UnitFactory<DimMass, 'st'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'st'> => ({ _v: toNum(v, 'st'), _s: 6.35029318, _l: 'st', _o: 0 }),
+  { _scale: 6.35029318, _label: 'st', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+export const ton: UnitFactory<DimMass, 'ton'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'ton'> => ({ _v: toNum(v, 'ton'), _s: 907.18474, _l: 'ton', _o: 0 }),
+  { _scale: 907.18474, _label: 'ton', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+export const lton: UnitFactory<DimMass, 'lton'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'lton'> => ({ _v: toNum(v, 'lton'), _s: 1016.0469088, _l: 'lton', _o: 0 }),
+  { _scale: 1016.0469088, _label: 'lton', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+export const dalton: UnitFactory<DimMass, 'Da'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'Da'> => ({ _v: toNum(v, 'Da'), _s: 1.6605390666e-27, _l: 'Da', _o: 0 }),
+  { _scale: 1.6605390666e-27, _label: 'Da', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+export const plm: UnitFactory<DimMass, 'plm'> = Object.assign(
+  (v: number | string): Quantity<DimMass, 'plm'> => ({ _v: toNum(v, 'plm'), _s: 2.176434e-8, _l: 'plm', _o: 0 }),
+  { _scale: 2.176434e-8, _label: 'plm', _dim: [0,1,0,0,0,0,0,0] as DimMass, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// New Time Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const ns: UnitFactory<DimTime, 'ns'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'ns'> => ({ _v: toNum(v, 'ns'), _s: 1e-9, _l: 'ns', _o: 0 }),
+  { _scale: 1e-9, _label: 'ns', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const us: UnitFactory<DimTime, 'us'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'us'> => ({ _v: toNum(v, 'us'), _s: 1e-6, _l: 'us', _o: 0 }),
+  { _scale: 1e-6, _label: 'us', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const d: UnitFactory<DimTime, 'd'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'd'> => ({ _v: toNum(v, 'd'), _s: 86400, _l: 'd', _o: 0 }),
+  { _scale: 86400, _label: 'd', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const week: UnitFactory<DimTime, 'week'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'week'> => ({ _v: toNum(v, 'week'), _s: 604800, _l: 'week', _o: 0 }),
+  { _scale: 604800, _label: 'week', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const month: UnitFactory<DimTime, 'month'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'month'> => ({ _v: toNum(v, 'month'), _s: 2629800, _l: 'month', _o: 0 }),
+  { _scale: 2629800, _label: 'month', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const yr: UnitFactory<DimTime, 'yr'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'yr'> => ({ _v: toNum(v, 'yr'), _s: 31557600, _l: 'yr', _o: 0 }),
+  { _scale: 31557600, _label: 'yr', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const decade: UnitFactory<DimTime, 'decade'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'decade'> => ({ _v: toNum(v, 'decade'), _s: 315576000, _l: 'decade', _o: 0 }),
+  { _scale: 315576000, _label: 'decade', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const century: UnitFactory<DimTime, 'century'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'century'> => ({ _v: toNum(v, 'century'), _s: 3155760000, _l: 'century', _o: 0 }),
+  { _scale: 3155760000, _label: 'century', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+export const plt: UnitFactory<DimTime, 'plt'> = Object.assign(
+  (v: number | string): Quantity<DimTime, 'plt'> => ({ _v: toNum(v, 'plt'), _s: 5.391247e-44, _l: 'plt', _o: 0 }),
+  { _scale: 5.391247e-44, _label: 'plt', _dim: [0,0,1,0,0,0,0,0] as DimTime, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Temperature Units (with affine offset support)
+// ═══════════════════════════════════════════════════════════════════════
+
+export const K: UnitFactory<DimTemperature, 'K'> = Object.assign(
+  (v: number | string): Quantity<DimTemperature, 'K'> => ({ _v: toNum(v, 'K'), _s: 1, _l: 'K', _o: 0 }),
+  { _scale: 1, _label: 'K', _dim: [0,0,0,0,1,0,0,0] as DimTemperature, _offset: 0 },
+);
+
+export const C: UnitFactory<DimTemperature, 'C'> = Object.assign(
+  (v: number | string): Quantity<DimTemperature, 'C'> => ({ _v: toNum(v, 'C'), _s: 1, _l: 'C', _o: 273.15 }),
+  { _scale: 1, _label: 'C', _dim: [0,0,0,0,1,0,0,0] as DimTemperature, _offset: 273.15 },
+);
+
+export const F: UnitFactory<DimTemperature, 'F'> = Object.assign(
+  (v: number | string): Quantity<DimTemperature, 'F'> => ({ _v: toNum(v, 'F'), _s: 5/9, _l: 'F', _o: 255.3722222222222 }),
+  { _scale: 5/9, _label: 'F', _dim: [0,0,0,0,1,0,0,0] as DimTemperature, _offset: 255.3722222222222 },
+);
+
+export const R: UnitFactory<DimTemperature, 'R'> = Object.assign(
+  (v: number | string): Quantity<DimTemperature, 'R'> => ({ _v: toNum(v, 'R'), _s: 5/9, _l: 'R', _o: 0 }),
+  { _scale: 5/9, _label: 'R', _dim: [0,0,0,0,1,0,0,0] as DimTemperature, _offset: 0 },
+);
+
+export const pT: UnitFactory<DimTemperature, 'pT'> = Object.assign(
+  (v: number | string): Quantity<DimTemperature, 'pT'> => ({ _v: toNum(v, 'pT'), _s: 1.416784e32, _l: 'pT', _o: 0 }),
+  { _scale: 1.416784e32, _label: 'pT', _dim: [0,0,0,0,1,0,0,0] as DimTemperature, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Area Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const mm2: UnitFactory<DimArea, 'mm2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'mm2'> => ({ _v: toNum(v, 'mm2'), _s: 1e-6, _l: 'mm2', _o: 0 }),
+  { _scale: 1e-6, _label: 'mm2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const cm2: UnitFactory<DimArea, 'cm2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'cm2'> => ({ _v: toNum(v, 'cm2'), _s: 1e-4, _l: 'cm2', _o: 0 }),
+  { _scale: 1e-4, _label: 'cm2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const m2: UnitFactory<DimArea, 'm2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'm2'> => ({ _v: toNum(v, 'm2'), _s: 1, _l: 'm2', _o: 0 }),
+  { _scale: 1, _label: 'm2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const ha: UnitFactory<DimArea, 'ha'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'ha'> => ({ _v: toNum(v, 'ha'), _s: 10000, _l: 'ha', _o: 0 }),
+  { _scale: 10000, _label: 'ha', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const km2: UnitFactory<DimArea, 'km2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'km2'> => ({ _v: toNum(v, 'km2'), _s: 1e6, _l: 'km2', _o: 0 }),
+  { _scale: 1e6, _label: 'km2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const in2: UnitFactory<DimArea, 'in2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'in2'> => ({ _v: toNum(v, 'in2'), _s: 6.4516e-4, _l: 'in2', _o: 0 }),
+  { _scale: 6.4516e-4, _label: 'in2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const ft2: UnitFactory<DimArea, 'ft2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'ft2'> => ({ _v: toNum(v, 'ft2'), _s: 0.09290304, _l: 'ft2', _o: 0 }),
+  { _scale: 0.09290304, _label: 'ft2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const yd2: UnitFactory<DimArea, 'yd2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'yd2'> => ({ _v: toNum(v, 'yd2'), _s: 0.83612736, _l: 'yd2', _o: 0 }),
+  { _scale: 0.83612736, _label: 'yd2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const ac: UnitFactory<DimArea, 'ac'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'ac'> => ({ _v: toNum(v, 'ac'), _s: 4046.8564224, _l: 'ac', _o: 0 }),
+  { _scale: 4046.8564224, _label: 'ac', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const mi2: UnitFactory<DimArea, 'mi2'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'mi2'> => ({ _v: toNum(v, 'mi2'), _s: 2589988.110336, _l: 'mi2', _o: 0 }),
+  { _scale: 2589988.110336, _label: 'mi2', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+export const pla: UnitFactory<DimArea, 'pla'> = Object.assign(
+  (v: number | string): Quantity<DimArea, 'pla'> => ({ _v: toNum(v, 'pla'), _s: 2.61228e-70, _l: 'pla', _o: 0 }),
+  { _scale: 2.61228e-70, _label: 'pla', _dim: [2,0,0,0,0,0,0,0] as DimArea, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Volume Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const ml: UnitFactory<DimVolume, 'ml'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'ml'> => ({ _v: toNum(v, 'ml'), _s: 1e-6, _l: 'ml', _o: 0 }),
+  { _scale: 1e-6, _label: 'ml', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const cl: UnitFactory<DimVolume, 'cl'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'cl'> => ({ _v: toNum(v, 'cl'), _s: 1e-5, _l: 'cl', _o: 0 }),
+  { _scale: 1e-5, _label: 'cl', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const l: UnitFactory<DimVolume, 'l'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'l'> => ({ _v: toNum(v, 'l'), _s: 0.001, _l: 'l', _o: 0 }),
+  { _scale: 0.001, _label: 'l', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const m3: UnitFactory<DimVolume, 'm3'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'm3'> => ({ _v: toNum(v, 'm3'), _s: 1, _l: 'm3', _o: 0 }),
+  { _scale: 1, _label: 'm3', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const tsp: UnitFactory<DimVolume, 'tsp'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'tsp'> => ({ _v: toNum(v, 'tsp'), _s: 4.92892159375e-6, _l: 'tsp', _o: 0 }),
+  { _scale: 4.92892159375e-6, _label: 'tsp', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const tbsp: UnitFactory<DimVolume, 'tbsp'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'tbsp'> => ({ _v: toNum(v, 'tbsp'), _s: 1.478676478125e-5, _l: 'tbsp', _o: 0 }),
+  { _scale: 1.478676478125e-5, _label: 'tbsp', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const floz: UnitFactory<DimVolume, 'floz'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'floz'> => ({ _v: toNum(v, 'floz'), _s: 2.95735295625e-5, _l: 'floz', _o: 0 }),
+  { _scale: 2.95735295625e-5, _label: 'floz', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const cup: UnitFactory<DimVolume, 'cup'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'cup'> => ({ _v: toNum(v, 'cup'), _s: 2.365882365e-4, _l: 'cup', _o: 0 }),
+  { _scale: 2.365882365e-4, _label: 'cup', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const pt_liq: UnitFactory<DimVolume, 'pt-liq'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'pt-liq'> => ({ _v: toNum(v, 'pt-liq'), _s: 4.73176473e-4, _l: 'pt-liq', _o: 0 }),
+  { _scale: 4.73176473e-4, _label: 'pt-liq', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const qt: UnitFactory<DimVolume, 'qt'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'qt'> => ({ _v: toNum(v, 'qt'), _s: 9.46352946e-4, _l: 'qt', _o: 0 }),
+  { _scale: 9.46352946e-4, _label: 'qt', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const gal: UnitFactory<DimVolume, 'gal'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'gal'> => ({ _v: toNum(v, 'gal'), _s: 3.785411784e-3, _l: 'gal', _o: 0 }),
+  { _scale: 3.785411784e-3, _label: 'gal', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+export const plv: UnitFactory<DimVolume, 'plv'> = Object.assign(
+  (v: number | string): Quantity<DimVolume, 'plv'> => ({ _v: toNum(v, 'plv'), _s: 4.22419e-105, _l: 'plv', _o: 0 }),
+  { _scale: 4.22419e-105, _label: 'plv', _dim: [3,0,0,0,0,0,0,0] as DimVolume, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Velocity Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const mps: UnitFactory<DimVelocity, 'm/s'> = Object.assign(
+  (v: number | string): Quantity<DimVelocity, 'm/s'> => ({ _v: toNum(v, 'm/s'), _s: 1, _l: 'm/s', _o: 0 }),
+  { _scale: 1, _label: 'm/s', _dim: [1,0,-1,0,0,0,0,0] as DimVelocity, _offset: 0 },
+);
+
+export const kmh: UnitFactory<DimVelocity, 'km/h'> = Object.assign(
+  (v: number | string): Quantity<DimVelocity, 'km/h'> => ({ _v: toNum(v, 'km/h'), _s: 5/18, _l: 'km/h', _o: 0 }),
+  { _scale: 5/18, _label: 'km/h', _dim: [1,0,-1,0,0,0,0,0] as DimVelocity, _offset: 0 },
+);
+
+export const fps: UnitFactory<DimVelocity, 'ft/s'> = Object.assign(
+  (v: number | string): Quantity<DimVelocity, 'ft/s'> => ({ _v: toNum(v, 'ft/s'), _s: 0.3048, _l: 'ft/s', _o: 0 }),
+  { _scale: 0.3048, _label: 'ft/s', _dim: [1,0,-1,0,0,0,0,0] as DimVelocity, _offset: 0 },
+);
+
+export const mph: UnitFactory<DimVelocity, 'mph'> = Object.assign(
+  (v: number | string): Quantity<DimVelocity, 'mph'> => ({ _v: toNum(v, 'mph'), _s: 0.44704, _l: 'mph', _o: 0 }),
+  { _scale: 0.44704, _label: 'mph', _dim: [1,0,-1,0,0,0,0,0] as DimVelocity, _offset: 0 },
+);
+
+export const kn: UnitFactory<DimVelocity, 'kn'> = Object.assign(
+  (v: number | string): Quantity<DimVelocity, 'kn'> => ({ _v: toNum(v, 'kn'), _s: 1852/3600, _l: 'kn', _o: 0 }),
+  { _scale: 1852/3600, _label: 'kn', _dim: [1,0,-1,0,0,0,0,0] as DimVelocity, _offset: 0 },
+);
+
+export const pvel: UnitFactory<DimVelocity, 'c'> = Object.assign(
+  (v: number | string): Quantity<DimVelocity, 'c'> => ({ _v: toNum(v, 'c'), _s: 299792458, _l: 'c', _o: 0 }),
+  { _scale: 299792458, _label: 'c', _dim: [1,0,-1,0,0,0,0,0] as DimVelocity, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Force Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const N: UnitFactory<DimForce, 'N'> = Object.assign(
+  (v: number | string): Quantity<DimForce, 'N'> => ({ _v: toNum(v, 'N'), _s: 1, _l: 'N', _o: 0 }),
+  { _scale: 1, _label: 'N', _dim: [1,1,-2,0,0,0,0,0] as DimForce, _offset: 0 },
+);
+
+export const kN: UnitFactory<DimForce, 'kN'> = Object.assign(
+  (v: number | string): Quantity<DimForce, 'kN'> => ({ _v: toNum(v, 'kN'), _s: 1000, _l: 'kN', _o: 0 }),
+  { _scale: 1000, _label: 'kN', _dim: [1,1,-2,0,0,0,0,0] as DimForce, _offset: 0 },
+);
+
+export const lbf: UnitFactory<DimForce, 'lbf'> = Object.assign(
+  (v: number | string): Quantity<DimForce, 'lbf'> => ({ _v: toNum(v, 'lbf'), _s: 4.4482216152605, _l: 'lbf', _o: 0 }),
+  { _scale: 4.4482216152605, _label: 'lbf', _dim: [1,1,-2,0,0,0,0,0] as DimForce, _offset: 0 },
+);
+
+export const dyn: UnitFactory<DimForce, 'dyn'> = Object.assign(
+  (v: number | string): Quantity<DimForce, 'dyn'> => ({ _v: toNum(v, 'dyn'), _s: 1e-5, _l: 'dyn', _o: 0 }),
+  { _scale: 1e-5, _label: 'dyn', _dim: [1,1,-2,0,0,0,0,0] as DimForce, _offset: 0 },
+);
+
+export const pfo: UnitFactory<DimForce, 'pfo'> = Object.assign(
+  (v: number | string): Quantity<DimForce, 'pfo'> => ({ _v: toNum(v, 'pfo'), _s: 1.21027e44, _l: 'pfo', _o: 0 }),
+  { _scale: 1.21027e44, _label: 'pfo', _dim: [1,1,-2,0,0,0,0,0] as DimForce, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Energy Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const J: UnitFactory<DimEnergy, 'J'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'J'> => ({ _v: toNum(v, 'J'), _s: 1, _l: 'J', _o: 0 }),
+  { _scale: 1, _label: 'J', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const kJ: UnitFactory<DimEnergy, 'kJ'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'kJ'> => ({ _v: toNum(v, 'kJ'), _s: 1000, _l: 'kJ', _o: 0 }),
+  { _scale: 1000, _label: 'kJ', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const cal: UnitFactory<DimEnergy, 'cal'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'cal'> => ({ _v: toNum(v, 'cal'), _s: 4.184, _l: 'cal', _o: 0 }),
+  { _scale: 4.184, _label: 'cal', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const kcal: UnitFactory<DimEnergy, 'kcal'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'kcal'> => ({ _v: toNum(v, 'kcal'), _s: 4184, _l: 'kcal', _o: 0 }),
+  { _scale: 4184, _label: 'kcal', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const Wh: UnitFactory<DimEnergy, 'Wh'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'Wh'> => ({ _v: toNum(v, 'Wh'), _s: 3600, _l: 'Wh', _o: 0 }),
+  { _scale: 3600, _label: 'Wh', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const kWh: UnitFactory<DimEnergy, 'kWh'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'kWh'> => ({ _v: toNum(v, 'kWh'), _s: 3600000, _l: 'kWh', _o: 0 }),
+  { _scale: 3600000, _label: 'kWh', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const eV: UnitFactory<DimEnergy, 'eV'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'eV'> => ({ _v: toNum(v, 'eV'), _s: 1.602176634e-19, _l: 'eV', _o: 0 }),
+  { _scale: 1.602176634e-19, _label: 'eV', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const BTU: UnitFactory<DimEnergy, 'BTU'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'BTU'> => ({ _v: toNum(v, 'BTU'), _s: 1055.06, _l: 'BTU', _o: 0 }),
+  { _scale: 1055.06, _label: 'BTU', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+export const pene: UnitFactory<DimEnergy, 'pene'> = Object.assign(
+  (v: number | string): Quantity<DimEnergy, 'pene'> => ({ _v: toNum(v, 'pene'), _s: 1.9561e9, _l: 'pene', _o: 0 }),
+  { _scale: 1.9561e9, _label: 'pene', _dim: [2,1,-2,0,0,0,0,0] as DimEnergy, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Power Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const W: UnitFactory<DimPower, 'W'> = Object.assign(
+  (v: number | string): Quantity<DimPower, 'W'> => ({ _v: toNum(v, 'W'), _s: 1, _l: 'W', _o: 0 }),
+  { _scale: 1, _label: 'W', _dim: [2,1,-3,0,0,0,0,0] as DimPower, _offset: 0 },
+);
+
+export const kW: UnitFactory<DimPower, 'kW'> = Object.assign(
+  (v: number | string): Quantity<DimPower, 'kW'> => ({ _v: toNum(v, 'kW'), _s: 1000, _l: 'kW', _o: 0 }),
+  { _scale: 1000, _label: 'kW', _dim: [2,1,-3,0,0,0,0,0] as DimPower, _offset: 0 },
+);
+
+export const MW: UnitFactory<DimPower, 'MW'> = Object.assign(
+  (v: number | string): Quantity<DimPower, 'MW'> => ({ _v: toNum(v, 'MW'), _s: 1e6, _l: 'MW', _o: 0 }),
+  { _scale: 1e6, _label: 'MW', _dim: [2,1,-3,0,0,0,0,0] as DimPower, _offset: 0 },
+);
+
+export const hp: UnitFactory<DimPower, 'hp'> = Object.assign(
+  (v: number | string): Quantity<DimPower, 'hp'> => ({ _v: toNum(v, 'hp'), _s: 745.69987158227, _l: 'hp', _o: 0 }),
+  { _scale: 745.69987158227, _label: 'hp', _dim: [2,1,-3,0,0,0,0,0] as DimPower, _offset: 0 },
+);
+
+export const ppow: UnitFactory<DimPower, 'ppow'> = Object.assign(
+  (v: number | string): Quantity<DimPower, 'ppow'> => ({ _v: toNum(v, 'ppow'), _s: 3.62831e52, _l: 'ppow', _o: 0 }),
+  { _scale: 3.62831e52, _label: 'ppow', _dim: [2,1,-3,0,0,0,0,0] as DimPower, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Pressure Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const Pa: UnitFactory<DimPressure, 'Pa'> = Object.assign(
+  (v: number | string): Quantity<DimPressure, 'Pa'> => ({ _v: toNum(v, 'Pa'), _s: 1, _l: 'Pa', _o: 0 }),
+  { _scale: 1, _label: 'Pa', _dim: [-1,1,-2,0,0,0,0,0] as DimPressure, _offset: 0 },
+);
+
+export const kPa: UnitFactory<DimPressure, 'kPa'> = Object.assign(
+  (v: number | string): Quantity<DimPressure, 'kPa'> => ({ _v: toNum(v, 'kPa'), _s: 1000, _l: 'kPa', _o: 0 }),
+  { _scale: 1000, _label: 'kPa', _dim: [-1,1,-2,0,0,0,0,0] as DimPressure, _offset: 0 },
+);
+
+export const bar: UnitFactory<DimPressure, 'bar'> = Object.assign(
+  (v: number | string): Quantity<DimPressure, 'bar'> => ({ _v: toNum(v, 'bar'), _s: 100000, _l: 'bar', _o: 0 }),
+  { _scale: 100000, _label: 'bar', _dim: [-1,1,-2,0,0,0,0,0] as DimPressure, _offset: 0 },
+);
+
+export const psi: UnitFactory<DimPressure, 'psi'> = Object.assign(
+  (v: number | string): Quantity<DimPressure, 'psi'> => ({ _v: toNum(v, 'psi'), _s: 6894.757293168361, _l: 'psi', _o: 0 }),
+  { _scale: 6894.757293168361, _label: 'psi', _dim: [-1,1,-2,0,0,0,0,0] as DimPressure, _offset: 0 },
+);
+
+export const atm: UnitFactory<DimPressure, 'atm'> = Object.assign(
+  (v: number | string): Quantity<DimPressure, 'atm'> => ({ _v: toNum(v, 'atm'), _s: 101325, _l: 'atm', _o: 0 }),
+  { _scale: 101325, _label: 'atm', _dim: [-1,1,-2,0,0,0,0,0] as DimPressure, _offset: 0 },
+);
+
+export const mmHg: UnitFactory<DimPressure, 'mmHg'> = Object.assign(
+  (v: number | string): Quantity<DimPressure, 'mmHg'> => ({ _v: toNum(v, 'mmHg'), _s: 133.322387415, _l: 'mmHg', _o: 0 }),
+  { _scale: 133.322387415, _label: 'mmHg', _dim: [-1,1,-2,0,0,0,0,0] as DimPressure, _offset: 0 },
+);
+
+export const ppre: UnitFactory<DimPressure, 'ppre'> = Object.assign(
+  (v: number | string): Quantity<DimPressure, 'ppre'> => ({ _v: toNum(v, 'ppre'), _s: 4.63309e113, _l: 'ppre', _o: 0 }),
+  { _scale: 4.63309e113, _label: 'ppre', _dim: [-1,1,-2,0,0,0,0,0] as DimPressure, _offset: 0 },
+);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Digital Storage Units
+// ═══════════════════════════════════════════════════════════════════════
+
+export const b: UnitFactory<DimData, 'b'> = Object.assign(
+  (v: number | string): Quantity<DimData, 'b'> => ({ _v: toNum(v, 'b'), _s: 1, _l: 'b', _o: 0 }),
+  { _scale: 1, _label: 'b', _dim: [0,0,0,0,0,0,0,1] as DimData, _offset: 0 },
+);
+
+export const B: UnitFactory<DimData, 'B'> = Object.assign(
+  (v: number | string): Quantity<DimData, 'B'> => ({ _v: toNum(v, 'B'), _s: 8, _l: 'B', _o: 0 }),
+  { _scale: 8, _label: 'B', _dim: [0,0,0,0,0,0,0,1] as DimData, _offset: 0 },
+);
+
+export const KB: UnitFactory<DimData, 'KB'> = Object.assign(
+  (v: number | string): Quantity<DimData, 'KB'> => ({ _v: toNum(v, 'KB'), _s: 8192, _l: 'KB', _o: 0 }),
+  { _scale: 8192, _label: 'KB', _dim: [0,0,0,0,0,0,0,1] as DimData, _offset: 0 },
+);
+
+export const MB: UnitFactory<DimData, 'MB'> = Object.assign(
+  (v: number | string): Quantity<DimData, 'MB'> => ({ _v: toNum(v, 'MB'), _s: 8388608, _l: 'MB', _o: 0 }),
+  { _scale: 8388608, _label: 'MB', _dim: [0,0,0,0,0,0,0,1] as DimData, _offset: 0 },
+);
+
+export const GB: UnitFactory<DimData, 'GB'> = Object.assign(
+  (v: number | string): Quantity<DimData, 'GB'> => ({ _v: toNum(v, 'GB'), _s: 8589934592, _l: 'GB', _o: 0 }),
+  { _scale: 8589934592, _label: 'GB', _dim: [0,0,0,0,0,0,0,1] as DimData, _offset: 0 },
+);
+
+export const TB: UnitFactory<DimData, 'TB'> = Object.assign(
+  (v: number | string): Quantity<DimData, 'TB'> => ({ _v: toNum(v, 'TB'), _s: 8796093022208, _l: 'TB', _o: 0 }),
+  { _scale: 8796093022208, _label: 'TB', _dim: [0,0,0,0,0,0,0,1] as DimData, _offset: 0 },
+);
+
+export const PB: UnitFactory<DimData, 'PB'> = Object.assign(
+  (v: number | string): Quantity<DimData, 'PB'> => ({ _v: toNum(v, 'PB'), _s: 9007199254740992, _l: 'PB', _o: 0 }),
+  { _scale: 9007199254740992, _label: 'PB', _dim: [0,0,0,0,0,0,0,1] as DimData, _offset: 0 },
 );
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -687,7 +1331,7 @@ export function add<D extends Dim, L extends string>(
   a: Quantity<D, L>,
   b: Quantity<D, L>,
 ): Quantity<D, L> {
-  return { _v: a._v + b._v, _s: a._s, _l: a._l } as Quantity<D, L>;
+  return { _v: a._v + b._v, _s: a._s, _l: a._l, _o: a._o } as Quantity<D, L>;
 }
 
 /**
@@ -716,7 +1360,7 @@ export function sub<D extends Dim, L extends string>(
   a: Quantity<D, L>,
   b: Quantity<D, L>,
 ): Quantity<D, L> {
-  return { _v: a._v - b._v, _s: a._s, _l: a._l } as Quantity<D, L>;
+  return { _v: a._v - b._v, _s: a._s, _l: a._l, _o: a._o } as Quantity<D, L>;
 }
 
 /**
@@ -753,7 +1397,7 @@ export function mul<DA extends Dim, LA extends string, DB extends Dim, LB extend
   a: Quantity<DA, LA>,
   b: Quantity<DB, LB>,
 ): Quantity<DimMul<DA, DB>, `${LA}*${LB}`> {
-  return { _v: a._v * b._v, _s: a._s * b._s, _l: a._l + '*' + b._l } as Quantity<DimMul<DA, DB>, `${LA}*${LB}`>;
+  return { _v: a._v * b._v, _s: a._s * b._s, _l: a._l + '*' + b._l, _o: 0 } as Quantity<DimMul<DA, DB>, `${LA}*${LB}`>;
 }
 
 /**
@@ -791,7 +1435,7 @@ export function div<DA extends Dim, LA extends string, DB extends Dim, LB extend
   a: Quantity<DA, LA>,
   b: Quantity<DB, LB>,
 ): Quantity<DimDiv<DA, DB>, `${LA}/${LB}`> {
-  return { _v: a._v / b._v, _s: a._s / b._s, _l: a._l + '/' + b._l } as Quantity<DimDiv<DA, DB>, `${LA}/${LB}`>;
+  return { _v: a._v / b._v, _s: a._s / b._s, _l: a._l + '/' + b._l, _o: 0 } as Quantity<DimDiv<DA, DB>, `${LA}/${LB}`>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -840,9 +1484,10 @@ export function to<D extends Dim, TL extends string, SL extends string>(
   quantity: Quantity<D, SL>,
 ): Quantity<D, TL> {
   return {
-    _v: quantity._v * quantity._s / target._scale,
+    _v: (quantity._v * quantity._s + quantity._o - target._offset) / target._scale,
     _s: target._scale,
     _l: target._label,
+    _o: target._offset,
   } as Quantity<D, TL>;
 }
 
@@ -1068,9 +1713,52 @@ export function parse(input: string): Quantity {
   if (trimmed === '') throw new TypeError('Invalid parse input: empty string');
 
   const factories: Record<string, UnitFactory<Dim, string>> = Object.create(null);
+  // Length
   factories['m'] = m; factories['km'] = km; factories['cm'] = cm; factories['mm'] = mm;
+  factories['in'] = inch; factories['ft'] = ft; factories['yd'] = yd; factories['mi'] = mi;
+  factories['nm'] = nm; factories['um'] = um; factories['dm'] = dm; factories['nmi'] = nmi;
+  factories['mil'] = mil; factories['au'] = au; factories['ly'] = ly; factories['pc'] = pc;
+  factories['pl'] = pl;
+  // Mass
+  factories['kg'] = kg; factories['g'] = g; factories['lb'] = lb; factories['oz'] = oz;
+  factories['ug'] = ug; factories['mg'] = mg; factories['t'] = t; factories['st'] = st;
+  factories['ton'] = ton; factories['lton'] = lton; factories['Da'] = dalton; factories['plm'] = plm;
+  // Time
   factories['s'] = s; factories['ms'] = ms; factories['min'] = min; factories['h'] = h;
-  factories['kg'] = kg; factories['g'] = g; factories['scalar'] = scalar;
+  factories['ns'] = ns; factories['us'] = us; factories['d'] = d; factories['week'] = week;
+  factories['month'] = month; factories['yr'] = yr; factories['decade'] = decade;
+  factories['century'] = century; factories['plt'] = plt;
+  // Temperature
+  factories['K'] = K; factories['C'] = C; factories['F'] = F; factories['R'] = R; factories['pT'] = pT;
+  // Area
+  factories['mm2'] = mm2; factories['cm2'] = cm2; factories['m2'] = m2; factories['ha'] = ha;
+  factories['km2'] = km2; factories['in2'] = in2; factories['ft2'] = ft2; factories['yd2'] = yd2;
+  factories['ac'] = ac; factories['mi2'] = mi2; factories['pla'] = pla;
+  // Volume
+  factories['ml'] = ml; factories['cl'] = cl; factories['l'] = l; factories['m3'] = m3;
+  factories['tsp'] = tsp; factories['tbsp'] = tbsp; factories['floz'] = floz; factories['cup'] = cup;
+  factories['pt-liq'] = pt_liq; factories['qt'] = qt; factories['gal'] = gal; factories['plv'] = plv;
+  // Velocity
+  factories['m/s'] = mps; factories['km/h'] = kmh; factories['ft/s'] = fps;
+  factories['mph'] = mph; factories['kn'] = kn; factories['c'] = pvel;
+  // Force
+  factories['N'] = N; factories['kN'] = kN; factories['lbf'] = lbf;
+  factories['dyn'] = dyn; factories['pfo'] = pfo;
+  // Energy
+  factories['J'] = J; factories['kJ'] = kJ; factories['cal'] = cal; factories['kcal'] = kcal;
+  factories['Wh'] = Wh; factories['kWh'] = kWh; factories['eV'] = eV;
+  factories['BTU'] = BTU; factories['pene'] = pene;
+  // Power
+  factories['W'] = W; factories['kW'] = kW; factories['MW'] = MW;
+  factories['hp'] = hp; factories['ppow'] = ppow;
+  // Pressure
+  factories['Pa'] = Pa; factories['kPa'] = kPa; factories['bar'] = bar;
+  factories['psi'] = psi; factories['atm'] = atm; factories['mmHg'] = mmHg; factories['ppre'] = ppre;
+  // Digital Storage
+  factories['b'] = b; factories['B'] = B; factories['KB'] = KB; factories['MB'] = MB;
+  factories['GB'] = GB; factories['TB'] = TB; factories['PB'] = PB;
+  // Scalar
+  factories['scalar'] = scalar;
 
   // Split on whitespace: first token is value, last token is unit.
   // We use lastIndexOf to handle "  5   m  " correctly after trim.
@@ -1160,7 +1848,34 @@ export function createChecked() {
   // Pre-compute a label → dimension-key lookup for all built-in units.
   // This allows O(1) runtime dimension checks by label comparison.
   const dimByLabel: Record<string, string> = {};
-  const allFactories = [m, km, cm, mm, s, ms, min, h, kg, g, scalar];
+  const allFactories = [
+    // Length
+    m, km, cm, mm, inch, ft, yd, mi, nm, um, dm, nmi, mil, au, ly, pc, pl,
+    // Mass
+    kg, g, lb, oz, ug, mg, t, st, ton, lton, dalton, plm,
+    // Time
+    s, ms, min, h, ns, us, d, week, month, yr, decade, century, plt,
+    // Temperature
+    K, C, F, R, pT,
+    // Area
+    mm2, cm2, m2, ha, km2, in2, ft2, yd2, ac, mi2, pla,
+    // Volume
+    ml, cl, l, m3, tsp, tbsp, floz, cup, pt_liq, qt, gal, plv,
+    // Velocity
+    mps, kmh, fps, mph, kn, pvel,
+    // Force
+    N, kN, lbf, dyn, pfo,
+    // Energy
+    J, kJ, cal, kcal, Wh, kWh, eV, BTU, pene,
+    // Power
+    W, kW, MW, hp, ppow,
+    // Pressure
+    Pa, kPa, bar, psi, atm, mmHg, ppre,
+    // Digital Storage
+    b, B, KB, MB, GB, TB, PB,
+    // Scalar
+    scalar,
+  ];
   for (const f of allFactories) {
     dimByLabel[f._label] = dimKey(f._dim);
   }
@@ -1235,9 +1950,18 @@ export function createChecked() {
 
   return {
     // Unit factories (identical to unchecked — they always produce valid quantities)
-    m, km, cm, mm,
-    s, ms, min, h,
-    kg, g,
+    m, km, cm, mm, inch, ft, yd, mi, nm, um, dm, nmi, mil, au, ly, pc, pl,
+    kg, g, lb, oz, ug, mg, t, st, ton, lton, dalton, plm,
+    s, ms, min, h, ns, us, d, week, month, yr, decade, century, plt,
+    K, C, F, R, pT,
+    mm2, cm2, m2, ha, km2, in2, ft2, yd2, ac, mi2, pla,
+    ml, cl, l, m3, tsp, tbsp, floz, cup, pt_liq, qt, gal, plv,
+    mps, kmh, fps, mph, kn, pvel,
+    N, kN, lbf, dyn, pfo,
+    J, kJ, cal, kcal, Wh, kWh, eV, BTU, pene,
+    W, kW, MW, hp, ppow,
+    Pa, kPa, bar, psi, atm, mmHg, ppre,
+    b, B, KB, MB, GB, TB, PB,
     scalar,
     // Runtime-checked operations
     add: checkedAdd,
