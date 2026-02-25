@@ -1312,4 +1312,504 @@ describe('parse — exhaustive scenarios', () => {
       expect(() => parse('0o m')).toThrow();
     });
   });
+
+  describe('extended unit labels', () => {
+    // Length
+    it('parses "5 nm" as nanometers', () => {
+      const r = parse('5 nm');
+      expect(r._v).toBe(5);
+      expect(r._l).toBe('nm');
+    });
+
+    it('parses "3 um" as micrometers', () => {
+      const r = parse('3 um');
+      expect(r._v).toBe(3);
+      expect(r._l).toBe('um');
+    });
+
+    it('parses "10 dm" as decimeters', () => {
+      const r = parse('10 dm');
+      expect(r._v).toBe(10);
+      expect(r._l).toBe('dm');
+    });
+
+    it('parses "2 nmi" as nautical miles', () => {
+      const r = parse('2 nmi');
+      expect(r._v).toBe(2);
+      expect(r._l).toBe('nmi');
+    });
+
+    it('parses "100 mil" as mils', () => {
+      const r = parse('100 mil');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('mil');
+    });
+
+    it('parses "1 au" as astronomical unit', () => {
+      const r = parse('1 au');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('au');
+    });
+
+    it('parses "1 ly" as light-year', () => {
+      const r = parse('1 ly');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('ly');
+    });
+
+    it('parses "1 pc" as parsec', () => {
+      const r = parse('1 pc');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('pc');
+    });
+
+    it('parses "1 pl" as Planck length', () => {
+      const r = parse('1 pl');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('pl');
+    });
+
+    // Mass
+    it('parses "5 Da" as dalton', () => {
+      const r = parse('5 Da');
+      expect(r._v).toBe(5);
+      expect(r._l).toBe('Da');
+    });
+
+    it('parses "10 ug" as micrograms', () => {
+      const r = parse('10 ug');
+      expect(r._v).toBe(10);
+      expect(r._l).toBe('ug');
+    });
+
+    it('parses "500 mg" as milligrams', () => {
+      const r = parse('500 mg');
+      expect(r._v).toBe(500);
+      expect(r._l).toBe('mg');
+    });
+
+    it('parses "2 t" as metric tonnes', () => {
+      const r = parse('2 t');
+      expect(r._v).toBe(2);
+      expect(r._l).toBe('t');
+    });
+
+    it('parses "10 st" as stone', () => {
+      const r = parse('10 st');
+      expect(r._v).toBe(10);
+      expect(r._l).toBe('st');
+    });
+
+    it('parses "1 ton" as US short ton', () => {
+      const r = parse('1 ton');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('ton');
+    });
+
+    it('parses "1 lton" as long ton', () => {
+      const r = parse('1 lton');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('lton');
+    });
+
+    it('parses "1 plm" as Planck mass', () => {
+      const r = parse('1 plm');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('plm');
+    });
+
+    // Time
+    it('parses "100 ns" as nanoseconds', () => {
+      const r = parse('100 ns');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('ns');
+    });
+
+    it('parses "50 us" as microseconds', () => {
+      const r = parse('50 us');
+      expect(r._v).toBe(50);
+      expect(r._l).toBe('us');
+    });
+
+    it('parses "7 d" as days', () => {
+      const r = parse('7 d');
+      expect(r._v).toBe(7);
+      expect(r._l).toBe('d');
+    });
+
+    it('parses "2 week" as weeks', () => {
+      const r = parse('2 week');
+      expect(r._v).toBe(2);
+      expect(r._l).toBe('week');
+    });
+
+    it('parses "6 month" as months', () => {
+      const r = parse('6 month');
+      expect(r._v).toBe(6);
+      expect(r._l).toBe('month');
+    });
+
+    it('parses "1 yr" as years', () => {
+      const r = parse('1 yr');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('yr');
+    });
+
+    it('parses "1 decade"', () => {
+      const r = parse('1 decade');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('decade');
+    });
+
+    it('parses "1 century"', () => {
+      const r = parse('1 century');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('century');
+    });
+
+    it('parses "1 plt" as Planck time', () => {
+      const r = parse('1 plt');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('plt');
+    });
+
+    // Temperature
+    it('parses "100 C" as Celsius', () => {
+      const r = parse('100 C');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('C');
+    });
+
+    it('parses "212 F" as Fahrenheit', () => {
+      const r = parse('212 F');
+      expect(r._v).toBe(212);
+      expect(r._l).toBe('F');
+    });
+
+    it('parses "491.67 R" as Rankine', () => {
+      const r = parse('491.67 R');
+      expect(r._v).toBe(491.67);
+      expect(r._l).toBe('R');
+    });
+
+    it('parses "1 pT" as Planck temperature', () => {
+      const r = parse('1 pT');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('pT');
+    });
+
+    // Area
+    it('parses "100 mm2"', () => {
+      const r = parse('100 mm2');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('mm2');
+    });
+
+    it('parses "50 cm2"', () => {
+      const r = parse('50 cm2');
+      expect(r._v).toBe(50);
+      expect(r._l).toBe('cm2');
+    });
+
+    it('parses "1 ha"', () => {
+      const r = parse('1 ha');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('ha');
+    });
+
+    it('parses "10 in2"', () => {
+      const r = parse('10 in2');
+      expect(r._v).toBe(10);
+      expect(r._l).toBe('in2');
+    });
+
+    it('parses "500 ft2"', () => {
+      const r = parse('500 ft2');
+      expect(r._v).toBe(500);
+      expect(r._l).toBe('ft2');
+    });
+
+    it('parses "1 ac" as acres', () => {
+      const r = parse('1 ac');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('ac');
+    });
+
+    it('parses "1 mi2"', () => {
+      const r = parse('1 mi2');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('mi2');
+    });
+
+    it('parses "1 pla" as Planck area', () => {
+      const r = parse('1 pla');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('pla');
+    });
+
+    // Volume
+    it('parses "250 ml"', () => {
+      const r = parse('250 ml');
+      expect(r._v).toBe(250);
+      expect(r._l).toBe('ml');
+    });
+
+    it('parses "75 cl"', () => {
+      const r = parse('75 cl');
+      expect(r._v).toBe(75);
+      expect(r._l).toBe('cl');
+    });
+
+    it('parses "1 tsp"', () => {
+      const r = parse('1 tsp');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('tsp');
+    });
+
+    it('parses "2 tbsp"', () => {
+      const r = parse('2 tbsp');
+      expect(r._v).toBe(2);
+      expect(r._l).toBe('tbsp');
+    });
+
+    it('parses "8 floz"', () => {
+      const r = parse('8 floz');
+      expect(r._v).toBe(8);
+      expect(r._l).toBe('floz');
+    });
+
+    it('parses "2 cup"', () => {
+      const r = parse('2 cup');
+      expect(r._v).toBe(2);
+      expect(r._l).toBe('cup');
+    });
+
+    it('parses "1 pt-liq" (hyphenated label)', () => {
+      const r = parse('1 pt-liq');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('pt-liq');
+    });
+
+    it('parses "1 qt"', () => {
+      const r = parse('1 qt');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('qt');
+    });
+
+    it('parses "1 gal"', () => {
+      const r = parse('1 gal');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('gal');
+    });
+
+    it('parses "1 plv" as Planck volume', () => {
+      const r = parse('1 plv');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('plv');
+    });
+
+    // Velocity
+    it('parses "10 m/s" (label with slash)', () => {
+      const r = parse('10 m/s');
+      expect(r._v).toBe(10);
+      expect(r._l).toBe('m/s');
+    });
+
+    it('parses "100 km/h" (label with slash)', () => {
+      const r = parse('100 km/h');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('km/h');
+    });
+
+    it('parses "30 ft/s"', () => {
+      const r = parse('30 ft/s');
+      expect(r._v).toBe(30);
+      expect(r._l).toBe('ft/s');
+    });
+
+    it('parses "60 mph"', () => {
+      const r = parse('60 mph');
+      expect(r._v).toBe(60);
+      expect(r._l).toBe('mph');
+    });
+
+    it('parses "20 kn" as knots', () => {
+      const r = parse('20 kn');
+      expect(r._v).toBe(20);
+      expect(r._l).toBe('kn');
+    });
+
+    it('parses "1 c" as speed of light', () => {
+      const r = parse('1 c');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('c');
+    });
+
+    // Force
+    it('parses "100 kN"', () => {
+      const r = parse('100 kN');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('kN');
+    });
+
+    it('parses "10 lbf"', () => {
+      const r = parse('10 lbf');
+      expect(r._v).toBe(10);
+      expect(r._l).toBe('lbf');
+    });
+
+    it('parses "1000 dyn"', () => {
+      const r = parse('1000 dyn');
+      expect(r._v).toBe(1000);
+      expect(r._l).toBe('dyn');
+    });
+
+    it('parses "1 pfo" as Planck force', () => {
+      const r = parse('1 pfo');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('pfo');
+    });
+
+    // Energy
+    it('parses "100 kJ"', () => {
+      const r = parse('100 kJ');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('kJ');
+    });
+
+    it('parses "500 cal"', () => {
+      const r = parse('500 cal');
+      expect(r._v).toBe(500);
+      expect(r._l).toBe('cal');
+    });
+
+    it('parses "2000 kcal"', () => {
+      const r = parse('2000 kcal');
+      expect(r._v).toBe(2000);
+      expect(r._l).toBe('kcal');
+    });
+
+    it('parses "1 Wh"', () => {
+      const r = parse('1 Wh');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('Wh');
+    });
+
+    it('parses "3.5 kWh"', () => {
+      const r = parse('3.5 kWh');
+      expect(r._v).toBe(3.5);
+      expect(r._l).toBe('kWh');
+    });
+
+    it('parses "1 eV"', () => {
+      const r = parse('1 eV');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('eV');
+    });
+
+    it('parses "100 BTU"', () => {
+      const r = parse('100 BTU');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('BTU');
+    });
+
+    it('parses "1 pene" as Planck energy', () => {
+      const r = parse('1 pene');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('pene');
+    });
+
+    // Power
+    it('parses "500 kW"', () => {
+      const r = parse('500 kW');
+      expect(r._v).toBe(500);
+      expect(r._l).toBe('kW');
+    });
+
+    it('parses "1 MW"', () => {
+      const r = parse('1 MW');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('MW');
+    });
+
+    it('parses "300 hp"', () => {
+      const r = parse('300 hp');
+      expect(r._v).toBe(300);
+      expect(r._l).toBe('hp');
+    });
+
+    it('parses "1 ppow" as Planck power', () => {
+      const r = parse('1 ppow');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('ppow');
+    });
+
+    // Pressure
+    it('parses "100 kPa"', () => {
+      const r = parse('100 kPa');
+      expect(r._v).toBe(100);
+      expect(r._l).toBe('kPa');
+    });
+
+    it('parses "1 bar"', () => {
+      const r = parse('1 bar');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('bar');
+    });
+
+    it('parses "30 psi"', () => {
+      const r = parse('30 psi');
+      expect(r._v).toBe(30);
+      expect(r._l).toBe('psi');
+    });
+
+    it('parses "1 atm"', () => {
+      const r = parse('1 atm');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('atm');
+    });
+
+    it('parses "760 mmHg"', () => {
+      const r = parse('760 mmHg');
+      expect(r._v).toBe(760);
+      expect(r._l).toBe('mmHg');
+    });
+
+    it('parses "1 ppre" as Planck pressure', () => {
+      const r = parse('1 ppre');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('ppre');
+    });
+
+    // Digital Storage
+    it('parses "8 b" as bits', () => {
+      const r = parse('8 b');
+      expect(r._v).toBe(8);
+      expect(r._l).toBe('b');
+    });
+
+    it('parses "1024 KB"', () => {
+      const r = parse('1024 KB');
+      expect(r._v).toBe(1024);
+      expect(r._l).toBe('KB');
+    });
+
+    it('parses "512 MB"', () => {
+      const r = parse('512 MB');
+      expect(r._v).toBe(512);
+      expect(r._l).toBe('MB');
+    });
+
+    it('parses "1 TB"', () => {
+      const r = parse('1 TB');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('TB');
+    });
+
+    it('parses "1 PB"', () => {
+      const r = parse('1 PB');
+      expect(r._v).toBe(1);
+      expect(r._l).toBe('PB');
+    });
+  });
 });

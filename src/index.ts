@@ -8,8 +8,8 @@
  * ## Core Concepts
  *
  * - **Dimension vectors** encode physical dimensions (length, mass, time, ...)
- *   as 7-element integer exponent tuples at the type level.
- * - **Quantities** are tiny runtime objects `{ _v, _s, _l }` branded with
+ *   as 8-element integer exponent tuples at the type level.
+ * - **Quantities** are tiny runtime objects `{ _v, _s, _l, _o }` branded with
  *   phantom type parameters that carry dimension and unit label information.
  * - **Unit factories** (`m`, `km`, `s`, ...) create branded quantities.
  * - **Operations** (`add`, `sub`, `mul`, `div`) enforce dimension constraints
@@ -154,9 +154,10 @@ type IntSub<A extends Int, B extends Int> = SubMap[A][B];
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * A physical dimension represented as a 7-element exponent vector.
+ * A physical dimension represented as an 8-element exponent vector.
  *
- * Each position corresponds to one of the seven SI base quantities:
+ * Each position corresponds to one of the seven SI base quantities
+ * plus a Data (digital storage) dimension:
  *
  * | Index | Base Quantity         | Symbol |
  * |-------|-----------------------|--------|
@@ -167,9 +168,10 @@ type IntSub<A extends Int, B extends Int> = SubMap[A][B];
  * | 4     | Thermodynamic temp.   | Θ      |
  * | 5     | Amount of substance   | N      |
  * | 6     | Luminous intensity    | J      |
+ * | 7     | Data (digital storage)| D      |
  *
  * The exponent at each position indicates the power of that base
- * quantity. For example, velocity (m/s) is `[1, 0, -1, 0, 0, 0, 0]`
+ * quantity. For example, velocity (m/s) is `[1, 0, -1, 0, 0, 0, 0, 0]`
  * meaning L^1 * T^-1.
  *
  * @example
@@ -178,10 +180,10 @@ type IntSub<A extends Int, B extends Int> = SubMap[A][B];
  * type DimLength = [1, 0, 0, 0, 0, 0, 0, 0];
  *
  * // Velocity (m/s): L^1 * T^-1
- * type DimVelocity = [1, 0, -1, 0, 0, 0, 0];
+ * type DimVelocity = [1, 0, -1, 0, 0, 0, 0, 0];
  *
  * // Force (N = kg*m/s^2): L^1 * M^1 * T^-2
- * type DimForce = [1, 1, -2, 0, 0, 0, 0];
+ * type DimForce = [1, 1, -2, 0, 0, 0, 0, 0];
  * ```
  *
  * @internal
@@ -203,8 +205,8 @@ type Dim = readonly [Int, Int, Int, Int, Int, Int, Int, Int];
  * @example
  * ```typescript
  * // m * m = m^2: [1,0,...] + [1,0,...] = [2,0,...]
- * type Area = DimMul<[1,0,0,0,0,0,0], [1,0,0,0,0,0,0]>;
- * // Result: [2, 0, 0, 0, 0, 0, 0]
+ * type Area = DimMul<[1,0,0,0,0,0,0,0], [1,0,0,0,0,0,0,0]>;
+ * // Result: [2, 0, 0, 0, 0, 0, 0, 0]
  * ```
  *
  * @internal
@@ -230,8 +232,8 @@ type DimMul<A extends Dim, B extends Dim> = [
  * @example
  * ```typescript
  * // m / s = m/s: [1,0,0,...] - [0,0,1,...] = [1,0,-1,...]
- * type Velocity = DimDiv<[1,0,0,0,0,0,0], [0,0,1,0,0,0,0]>;
- * // Result: [1, 0, -1, 0, 0, 0, 0]
+ * type Velocity = DimDiv<[1,0,0,0,0,0,0,0], [0,0,1,0,0,0,0,0]>;
+ * // Result: [1, 0, -1, 0, 0, 0, 0, 0]
  * ```
  *
  * @internal
@@ -279,14 +281,23 @@ type DimMass   = [0, 1, 0, 0, 0, 0, 0, 0];
  */
 type DimTime   = [0, 0, 1, 0, 0, 0, 0, 0];
 
+/** Dimension vector for temperature (Θ^1). @internal */
 type DimTemperature = [0, 0, 0, 0, 1, 0, 0, 0];
+/** Dimension vector for area (L^2). @internal */
 type DimArea        = [2, 0, 0, 0, 0, 0, 0, 0];
+/** Dimension vector for volume (L^3). @internal */
 type DimVolume      = [3, 0, 0, 0, 0, 0, 0, 0];
+/** Dimension vector for velocity (L^1 * T^-1). @internal */
 type DimVelocity    = [1, 0, -1, 0, 0, 0, 0, 0];
+/** Dimension vector for force (L^1 * M^1 * T^-2). @internal */
 type DimForce       = [1, 1, -2, 0, 0, 0, 0, 0];
+/** Dimension vector for energy (L^2 * M^1 * T^-2). @internal */
 type DimEnergy      = [2, 1, -2, 0, 0, 0, 0, 0];
+/** Dimension vector for power (L^2 * M^1 * T^-3). @internal */
 type DimPower       = [2, 1, -3, 0, 0, 0, 0, 0];
+/** Dimension vector for pressure (L^-1 * M^1 * T^-2). @internal */
 type DimPressure    = [-1, 1, -2, 0, 0, 0, 0, 0];
+/** Dimension vector for digital data (D^1). @internal */
 type DimData        = [0, 0, 0, 0, 0, 0, 0, 1];
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -296,14 +307,15 @@ type DimData        = [0, 0, 0, 0, 0, 0, 0, 1];
 /**
  * A physical quantity with compile-time dimension safety.
  *
- * At runtime, a `Quantity` is a plain JavaScript object with three
+ * At runtime, a `Quantity` is a plain JavaScript object with four
  * properties:
  *
- * | Property | Type     | Description                                   |
- * |----------|----------|-----------------------------------------------|
- * | `_v`     | `number` | The numeric value in the quantity's own unit   |
- * | `_s`     | `number` | SI scale factor (e.g., 1000 for km → m)       |
- * | `_l`     | `string` | Unit label for formatting (e.g., `"km"`)       |
+ * | Property | Type     | Description                                     |
+ * |----------|----------|-------------------------------------------------|
+ * | `_v`     | `number` | The numeric value in the quantity's own unit     |
+ * | `_s`     | `number` | SI scale factor (e.g., 1000 for km → m)         |
+ * | `_l`     | `string` | Unit label for formatting (e.g., `"km"`)         |
+ * | `_o`     | `number` | SI offset for affine conversions (0 for most)    |
  *
  * The type parameters `D` and `L` are **phantom types** — they exist only
  * at compile time and are erased at runtime. They carry the dimension
@@ -313,7 +325,7 @@ type DimData        = [0, 0, 0, 0, 0, 0, 0, 1];
  * All quantity objects share the same V8 hidden class (same properties,
  * same order, same types), enabling optimized monomorphic property access.
  *
- * @typeParam D - The dimension vector (a 7-element {@link Int} tuple).
+ * @typeParam D - The dimension vector (an 8-element {@link Int} tuple).
  *   Defaults to `Dim` (any dimension) when not specified.
  * @typeParam L - The unit label string literal type (e.g., `'m'`, `'km'`).
  *   Defaults to `string` when not specified.
@@ -322,12 +334,12 @@ type DimData        = [0, 0, 0, 0, 0, 0, 0, 1];
  * ```typescript
  * import { m, km, valueOf, type Quantity } from 'unitsafe';
  *
- * const distance: Quantity<[1,0,0,0,0,0,0], 'm'> = m(42);
+ * const distance: Quantity<[1,0,0,0,0,0,0,0], 'm'> = m(42);
  * valueOf(distance); // 42
  *
  * // The phantom types prevent mixing incompatible quantities:
- * function addMeters(a: Quantity<[1,0,0,0,0,0,0], 'm'>,
- *                    b: Quantity<[1,0,0,0,0,0,0], 'm'>) { ... }
+ * function addMeters(a: Quantity<[1,0,0,0,0,0,0,0], 'm'>,
+ *                    b: Quantity<[1,0,0,0,0,0,0,0], 'm'>) { ... }
  * ```
  */
 export interface Quantity<D extends Dim = Dim, L extends string = string> {
@@ -412,7 +424,7 @@ export interface Quantity<D extends Dim = Dim, L extends string = string> {
  * // Accessing metadata:
  * m._scale  // 1
  * m._label  // 'm'
- * m._dim    // [1, 0, 0, 0, 0, 0, 0]
+ * m._dim    // [1, 0, 0, 0, 0, 0, 0, 0]
  * ```
  */
 export interface UnitFactory<D extends Dim, L extends string> {
@@ -935,6 +947,7 @@ export const C: UnitFactory<DimTemperature, 'C'> = Object.assign(
 );
 
 export const F: UnitFactory<DimTemperature, 'F'> = Object.assign(
+  // offset = 273.15 - 32 * 5/9 = 255.3722... (Kelvin value at 0 °F)
   (v: number | string): Quantity<DimTemperature, 'F'> => ({ _v: toNum(v, 'F'), _s: 5/9, _l: 'F', _o: 255.3722222222222 }),
   { _scale: 5/9, _label: 'F', _dim: [0,0,0,0,1,0,0,0] as DimTemperature, _offset: 255.3722222222222 },
 );
@@ -1308,7 +1321,7 @@ export const PB: UnitFactory<DimData, 'PB'> = Object.assign(
  * add(m(500), to(m, km(1)))  // OK: 1500 m
  * ```
  *
- * **Runtime behavior:** Returns `{ _v: a._v + b._v, _s: a._s, _l: a._l }`.
+ * **Runtime behavior:** Returns `{ _v: a._v + b._v, _s: a._s, _l: a._l, _o: a._o }`.
  * No conversion is performed — the values are added directly.
  *
  * @typeParam D - Shared dimension vector of both operands
@@ -1340,7 +1353,7 @@ export function add<D extends Dim, L extends string>(
  * Both operands must have identical type parameters `D` (dimension vector)
  * and `L` (unit label). This is enforced at compile time.
  *
- * **Runtime behavior:** Returns `{ _v: a._v - b._v, _s: a._s, _l: a._l }`.
+ * **Runtime behavior:** Returns `{ _v: a._v - b._v, _s: a._s, _l: a._l, _o: a._o }`.
  *
  * @typeParam D - Shared dimension vector of both operands
  * @typeParam L - Shared unit label of both operands
@@ -1370,7 +1383,9 @@ export function sub<D extends Dim, L extends string>(
  * element-wise via {@link DimMul}. The label is composed with `*`
  * (e.g., `"m*m"`, `"kg*m"`).
  *
- * **Runtime behavior:** Returns `{ _v: a._v * b._v, _s: a._s * b._s, _l: a._l + '*' + b._l }`.
+ * **Runtime behavior:** Returns `{ _v: a._v * b._v, _s: a._s * b._s, _l: a._l + '*' + b._l, _o: 0 }`.
+ * Throws a `TypeError` if either operand has a non-zero offset (e.g., Celsius
+ * or Fahrenheit) — convert to an absolute unit (Kelvin) first.
  *
  * @typeParam DA - Dimension vector of the first operand
  * @typeParam LA - Unit label of the first operand
@@ -1380,23 +1395,29 @@ export function sub<D extends Dim, L extends string>(
  * @param b - Second quantity (multiplier)
  * @returns A new quantity with composed dimension `DimMul<DA, DB>` and
  *   composed label `"${LA}*${LB}"`
+ * @throws {TypeError} If either operand has a non-zero affine offset
  *
  * @example
  * ```typescript
  * // Area: m * m = m^2
- * const area = mul(m(3), m(4));        // 12, dim [2,0,0,0,0,0,0]
+ * const area = mul(m(3), m(4));        // 12, dim [2,0,0,0,0,0,0,0]
  *
  * // Force component: kg * m
- * const kgm = mul(kg(10), m(5));       // 50, dim [1,1,0,0,0,0,0]
+ * const kgm = mul(kg(10), m(5));       // 50, dim [1,1,0,0,0,0,0,0]
  *
  * // Scalar scaling:
- * const doubled = mul(scalar(2), m(5)); // 10, dim [1,0,0,0,0,0,0]
+ * const doubled = mul(scalar(2), m(5)); // 10, dim [1,0,0,0,0,0,0,0]
  * ```
  */
 export function mul<DA extends Dim, LA extends string, DB extends Dim, LB extends string>(
   a: Quantity<DA, LA>,
   b: Quantity<DB, LB>,
 ): Quantity<DimMul<DA, DB>, `${LA}*${LB}`> {
+  if (a._o !== 0 || b._o !== 0) {
+    throw new TypeError(
+      `Cannot multiply quantities with affine offsets ("${a._l}", "${b._l}") — convert to an absolute unit (e.g., Kelvin) first`,
+    );
+  }
   return { _v: a._v * b._v, _s: a._s * b._s, _l: a._l + '*' + b._l, _o: 0 } as Quantity<DimMul<DA, DB>, `${LA}*${LB}`>;
 }
 
@@ -1407,7 +1428,9 @@ export function mul<DA extends Dim, LA extends string, DB extends Dim, LB extend
  * subtracted element-wise via {@link DimDiv}. The label is composed
  * with `/` (e.g., `"m/s"`, `"kg/m"`).
  *
- * **Runtime behavior:** Returns `{ _v: a._v / b._v, _s: a._s / b._s, _l: a._l + '/' + b._l }`.
+ * **Runtime behavior:** Returns `{ _v: a._v / b._v, _s: a._s / b._s, _l: a._l + '/' + b._l, _o: 0 }`.
+ * Throws a `TypeError` if either operand has a non-zero offset (e.g., Celsius
+ * or Fahrenheit) — convert to an absolute unit (Kelvin) first.
  *
  * @typeParam DA - Dimension vector of the dividend
  * @typeParam LA - Unit label of the dividend
@@ -1417,24 +1440,30 @@ export function mul<DA extends Dim, LA extends string, DB extends Dim, LB extend
  * @param b - The quantity to divide by (divisor / denominator)
  * @returns A new quantity with composed dimension `DimDiv<DA, DB>` and
  *   composed label `"${LA}/${LB}"`
+ * @throws {TypeError} If either operand has a non-zero affine offset
  *
  * @example
  * ```typescript
  * // Velocity: m / s
- * const speed = div(m(100), s(10));    // 10, dim [1,0,-1,0,0,0,0]
+ * const speed = div(m(100), s(10));    // 10, dim [1,0,-1,0,0,0,0,0]
  *
  * // Density: kg / m^3
  * const vol = mul(m(1), mul(m(1), m(1)));
  * const density = div(kg(1000), vol);  // 1000 kg/m^3
  *
  * // Scalar division (halving):
- * const half = div(m(10), scalar(2));  // 5, dim [1,0,0,0,0,0,0]
+ * const half = div(m(10), scalar(2));  // 5, dim [1,0,0,0,0,0,0,0]
  * ```
  */
 export function div<DA extends Dim, LA extends string, DB extends Dim, LB extends string>(
   a: Quantity<DA, LA>,
   b: Quantity<DB, LB>,
 ): Quantity<DimDiv<DA, DB>, `${LA}/${LB}`> {
+  if (a._o !== 0 || b._o !== 0) {
+    throw new TypeError(
+      `Cannot divide quantities with affine offsets ("${a._l}", "${b._l}") — convert to an absolute unit (e.g., Kelvin) first`,
+    );
+  }
   return { _v: a._v / b._v, _s: a._s / b._s, _l: a._l + '/' + b._l, _o: 0 } as Quantity<DimDiv<DA, DB>, `${LA}/${LB}`>;
 }
 
@@ -1452,13 +1481,12 @@ export function div<DA extends Dim, LA extends string, DB extends Dim, LB extend
  *
  * **Conversion formula:**
  * ```
- * result = sourceValue * sourceScale / targetScale
+ * result = (sourceValue * sourceScale + sourceOffset - targetOffset) / targetScale
  * ```
  *
- * For example, converting 1.5 km to meters:
- * ```
- * 1.5 * 1000 / 1 = 1500 m
- * ```
+ * For non-temperature units (offset = 0), this simplifies to
+ * `sourceValue * sourceScale / targetScale`. For temperature units,
+ * the offset enables affine conversions (e.g., Celsius ↔ Fahrenheit).
  *
  * @typeParam D - Shared dimension vector (enforced to be the same for
  *   source and target)
@@ -1680,8 +1708,9 @@ export function format<D extends Dim, L extends string>(
  * The input format is `"<value> <unit>"` where:
  * - `<value>` is any valid JavaScript numeric literal (integers, floats,
  *   negative numbers, scientific notation)
- * - `<unit>` is one of the built-in unit labels: `m`, `km`, `cm`, `mm`,
- *   `s`, `ms`, `min`, `h`, `kg`, `g`, `scalar`
+ * - `<unit>` is any built-in unit label (all 110 units are supported,
+ *   including `m`, `km`, `ft`, `mi`, `kg`, `lb`, `s`, `h`, `K`, `C`, `F`,
+ *   `m2`, `l`, `gal`, `m/s`, `mph`, `N`, `J`, `W`, `Pa`, `B`, `GB`, etc.)
  *
  * Leading/trailing whitespace is trimmed. Value and unit can be separated
  * by one or more spaces.
@@ -1708,60 +1737,47 @@ export function format<D extends Dim, L extends string>(
  * parse('')          // throws TypeError: empty string
  * ```
  */
+// ── Module-scope factory registry (single source of truth for parse + createChecked) ──
+
+const _ALL_FACTORIES: UnitFactory<Dim, string>[] = [
+  // Length
+  m, km, cm, mm, inch, ft, yd, mi, nm, um, dm, nmi, mil, au, ly, pc, pl,
+  // Mass
+  kg, g, lb, oz, ug, mg, t, st, ton, lton, dalton, plm,
+  // Time
+  s, ms, min, h, ns, us, d, week, month, yr, decade, century, plt,
+  // Temperature
+  K, C, F, R, pT,
+  // Area
+  mm2, cm2, m2, ha, km2, in2, ft2, yd2, ac, mi2, pla,
+  // Volume
+  ml, cl, l, m3, tsp, tbsp, floz, cup, pt_liq, qt, gal, plv,
+  // Velocity
+  mps, kmh, fps, mph, kn, pvel,
+  // Force
+  N, kN, lbf, dyn, pfo,
+  // Energy
+  J, kJ, cal, kcal, Wh, kWh, eV, BTU, pene,
+  // Power
+  W, kW, MW, hp, ppow,
+  // Pressure
+  Pa, kPa, bar, psi, atm, mmHg, ppre,
+  // Digital Storage
+  b, B, KB, MB, GB, TB, PB,
+  // Scalar
+  scalar,
+];
+
+const _PARSE_FACTORIES: Record<string, UnitFactory<Dim, string>> = Object.create(null);
+for (const f of _ALL_FACTORIES) {
+  _PARSE_FACTORIES[f._label] = f;
+}
+
 export function parse(input: string): Quantity {
   const trimmed = input.trim();
   if (trimmed === '') throw new TypeError('Invalid parse input: empty string');
 
-  const factories: Record<string, UnitFactory<Dim, string>> = Object.create(null);
-  // Length
-  factories['m'] = m; factories['km'] = km; factories['cm'] = cm; factories['mm'] = mm;
-  factories['in'] = inch; factories['ft'] = ft; factories['yd'] = yd; factories['mi'] = mi;
-  factories['nm'] = nm; factories['um'] = um; factories['dm'] = dm; factories['nmi'] = nmi;
-  factories['mil'] = mil; factories['au'] = au; factories['ly'] = ly; factories['pc'] = pc;
-  factories['pl'] = pl;
-  // Mass
-  factories['kg'] = kg; factories['g'] = g; factories['lb'] = lb; factories['oz'] = oz;
-  factories['ug'] = ug; factories['mg'] = mg; factories['t'] = t; factories['st'] = st;
-  factories['ton'] = ton; factories['lton'] = lton; factories['Da'] = dalton; factories['plm'] = plm;
-  // Time
-  factories['s'] = s; factories['ms'] = ms; factories['min'] = min; factories['h'] = h;
-  factories['ns'] = ns; factories['us'] = us; factories['d'] = d; factories['week'] = week;
-  factories['month'] = month; factories['yr'] = yr; factories['decade'] = decade;
-  factories['century'] = century; factories['plt'] = plt;
-  // Temperature
-  factories['K'] = K; factories['C'] = C; factories['F'] = F; factories['R'] = R; factories['pT'] = pT;
-  // Area
-  factories['mm2'] = mm2; factories['cm2'] = cm2; factories['m2'] = m2; factories['ha'] = ha;
-  factories['km2'] = km2; factories['in2'] = in2; factories['ft2'] = ft2; factories['yd2'] = yd2;
-  factories['ac'] = ac; factories['mi2'] = mi2; factories['pla'] = pla;
-  // Volume
-  factories['ml'] = ml; factories['cl'] = cl; factories['l'] = l; factories['m3'] = m3;
-  factories['tsp'] = tsp; factories['tbsp'] = tbsp; factories['floz'] = floz; factories['cup'] = cup;
-  factories['pt-liq'] = pt_liq; factories['qt'] = qt; factories['gal'] = gal; factories['plv'] = plv;
-  // Velocity
-  factories['m/s'] = mps; factories['km/h'] = kmh; factories['ft/s'] = fps;
-  factories['mph'] = mph; factories['kn'] = kn; factories['c'] = pvel;
-  // Force
-  factories['N'] = N; factories['kN'] = kN; factories['lbf'] = lbf;
-  factories['dyn'] = dyn; factories['pfo'] = pfo;
-  // Energy
-  factories['J'] = J; factories['kJ'] = kJ; factories['cal'] = cal; factories['kcal'] = kcal;
-  factories['Wh'] = Wh; factories['kWh'] = kWh; factories['eV'] = eV;
-  factories['BTU'] = BTU; factories['pene'] = pene;
-  // Power
-  factories['W'] = W; factories['kW'] = kW; factories['MW'] = MW;
-  factories['hp'] = hp; factories['ppow'] = ppow;
-  // Pressure
-  factories['Pa'] = Pa; factories['kPa'] = kPa; factories['bar'] = bar;
-  factories['psi'] = psi; factories['atm'] = atm; factories['mmHg'] = mmHg; factories['ppre'] = ppre;
-  // Digital Storage
-  factories['b'] = b; factories['B'] = B; factories['KB'] = KB; factories['MB'] = MB;
-  factories['GB'] = GB; factories['TB'] = TB; factories['PB'] = PB;
-  // Scalar
-  factories['scalar'] = scalar;
-
   // Split on whitespace: first token is value, last token is unit.
-  // We use lastIndexOf to handle "  5   m  " correctly after trim.
   const parts = trimmed.split(/\s+/);
   if (parts.length < 2) {
     throw new TypeError(`Invalid parse input: "${input}" — expected "<value> <unit>"`);
@@ -1769,7 +1785,7 @@ export function parse(input: string): Quantity {
 
   const valueStr = parts[0];
   const unitLabel = parts[parts.length - 1];
-  const factory = factories[unitLabel];
+  const factory = _PARSE_FACTORIES[unitLabel];
 
   if (!factory) {
     throw new TypeError(`Unknown unit "${unitLabel}" in parse input "${input}"`);
@@ -1835,7 +1851,7 @@ export function parse(input: string): Quantity {
 export function createChecked() {
   /**
    * Serializes a dimension vector into a comparable string key.
-   * Used to compare dimensions at runtime (e.g., `"1,0,0,0,0,0,0"`).
+   * Used to compare dimensions at runtime (e.g., `"1,0,0,0,0,0,0,0"`).
    *
    * @param dim - A dimension exponent array
    * @returns A comma-separated string of exponents
@@ -1848,35 +1864,7 @@ export function createChecked() {
   // Pre-compute a label → dimension-key lookup for all built-in units.
   // This allows O(1) runtime dimension checks by label comparison.
   const dimByLabel: Record<string, string> = {};
-  const allFactories = [
-    // Length
-    m, km, cm, mm, inch, ft, yd, mi, nm, um, dm, nmi, mil, au, ly, pc, pl,
-    // Mass
-    kg, g, lb, oz, ug, mg, t, st, ton, lton, dalton, plm,
-    // Time
-    s, ms, min, h, ns, us, d, week, month, yr, decade, century, plt,
-    // Temperature
-    K, C, F, R, pT,
-    // Area
-    mm2, cm2, m2, ha, km2, in2, ft2, yd2, ac, mi2, pla,
-    // Volume
-    ml, cl, l, m3, tsp, tbsp, floz, cup, pt_liq, qt, gal, plv,
-    // Velocity
-    mps, kmh, fps, mph, kn, pvel,
-    // Force
-    N, kN, lbf, dyn, pfo,
-    // Energy
-    J, kJ, cal, kcal, Wh, kWh, eV, BTU, pene,
-    // Power
-    W, kW, MW, hp, ppow,
-    // Pressure
-    Pa, kPa, bar, psi, atm, mmHg, ppre,
-    // Digital Storage
-    b, B, KB, MB, GB, TB, PB,
-    // Scalar
-    scalar,
-  ];
-  for (const f of allFactories) {
+  for (const f of _ALL_FACTORIES) {
     dimByLabel[f._label] = dimKey(f._dim);
   }
 
